@@ -105,8 +105,12 @@ def profiled_via_cprofile(lines=50):
                 for sort in ('tottime', 'cumulative', 'ncalls'):
                     result.fcn_list = list_orig
                     result.sort_stats(sort)
-                    result.fcn_list = [e for e in result.fcn_list
-                        if not any([s in str(e) for s in skipped_lines])]
+                    result.fcn_list = [
+                        e
+                        for e in result.fcn_list
+                        if all(s not in str(e) for s in skipped_lines)
+                    ]
+
                     result.print_stats(lines)
         return wrapped
     return wrapper
@@ -156,9 +160,9 @@ def log_duration(name=None):
                 return f(*args, **kwargs)
             finally:
                 end_time = now_utc(millis=True)
-                func_name = name or f.__name__
                 duration = (end_time - start_time) * 1000
                 if duration > 500:
+                    func_name = name or f.__name__
                     LOG.info('Execution of "%s" took %sms' % (func_name, duration))
         return wrapped
     return wrapper

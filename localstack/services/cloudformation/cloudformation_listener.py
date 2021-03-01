@@ -100,11 +100,10 @@ class ProxyListenerCloudFormation(ProxyListener):
             if action == 'DescribeStackEvents':
                 # fix an issue where moto cannot handle ARNs as stack names (or missing names)
                 run_fix = not stack_name
-                if stack_name:
-                    if stack_name.startswith('arn:aws:cloudformation'):
-                        run_fix = True
-                        pattern = r'arn:aws:cloudformation:[^:]+:[^:]+:stack/([^/]+)(/.+)?'
-                        stack_name = re.sub(pattern, r'\1', stack_name)
+                if stack_name and stack_name.startswith('arn:aws:cloudformation'):
+                    run_fix = True
+                    pattern = r'arn:aws:cloudformation:[^:]+:[^:]+:stack/([^/]+)(/.+)?'
+                    stack_name = re.sub(pattern, r'\1', stack_name)
                 if run_fix:
                     stack_names = [stack_name] if stack_name else self._list_stack_names()
                     client = aws_stack.connect_to_service('cloudformation')

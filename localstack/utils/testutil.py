@@ -305,8 +305,7 @@ def download_s3_object(s3, bucket, path):
 def all_s3_object_keys(bucket):
     s3_client = aws_stack.connect_to_resource('s3')
     bucket = s3_client.Bucket(bucket) if isinstance(bucket, str) else bucket
-    keys = [key for key in bucket.objects.all()]
-    return keys
+    return [key for key in bucket.objects.all()]
 
 
 def map_all_s3_objects(to_json=True, buckets=None):

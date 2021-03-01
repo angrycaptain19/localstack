@@ -123,9 +123,12 @@ class ProxyListenerSNS(PersistingProxyListener):
 
                 # No need to create a topic to send SMS or single push notifications with SNS
                 # but we can't mock a sending so we only return that it went well
-                if 'PhoneNumber' not in req_data and 'TargetArn' not in req_data:
-                    if topic_arn not in SNS_SUBSCRIPTIONS:
-                        return make_error(code=404, code_string='NotFound', message='Topic does not exist')
+                if (
+                    'PhoneNumber' not in req_data
+                    and 'TargetArn' not in req_data
+                    and topic_arn not in SNS_SUBSCRIPTIONS
+                ):
+                    return make_error(code=404, code_string='NotFound', message='Topic does not exist')
 
                 message_id = publish_message(topic_arn, req_data)
 
@@ -159,11 +162,9 @@ class ProxyListenerSNS(PersistingProxyListener):
                 return make_response(req_action)
 
             elif req_action == 'UntagResource':
-                tags_to_remove = []
                 req_tags = {k: v for k, v in req_data.items() if k.startswith('TagKeys.member.')}
                 req_tags = req_tags.values()
-                for tag in req_tags:
-                    tags_to_remove.append(tag[0])
+                tags_to_remove = [tag[0] for tag in req_tags]
                 do_untag_resource(topic_arn, tags_to_remove)
                 return make_response(req_action)
 
@@ -637,11 +638,11 @@ def get_message_attributes(req_data):
 
 
 def get_subscribe_attributes(req_data):
-    attributes = {}
-    for key in req_data.keys():
-        if '.key' in key:
-            attributes[req_data[key][0]] = req_data[key.replace('key', 'value')][0]
-    return attributes
+    return {
+        req_data[key][0]: req_data[key.replace('key', 'value')][0]
+        for key in req_data.keys()
+        if '.key' in key
+    }
 
 
 def is_number(x):
@@ -661,22 +662,19 @@ def evaluate_numeric_condition(conditions, value):
         operator = conditions[i]
         operand = float(conditions[i + 1])
 
-        if operator == '=':
-            if value != operand:
-                return False
-        elif operator == '>':
-            if value <= operand:
-                return False
-        elif operator == '<':
-            if value >= operand:
-                return False
-        elif operator == '>=':
-            if value < operand:
-                return False
-        elif operator == '<=':
-            if value > operand:
-                return False
-
+        if (
+            operator == '='
+            and value != operand
+            or operator == '>'
+            and value <= operand
+            or operator == '<'
+            and value >= operand
+            or operator == '>='
+            and value < operand
+            or operator == '<='
+            and value > operand
+        ):
+            return False
     return True
 
 

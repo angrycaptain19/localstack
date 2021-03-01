@@ -22,21 +22,19 @@ class ProxyListenerRoute53(PersistingProxyListener):
         parsed_url = urlparse(path)
         action = parsed_url.path.split('/')[2]
 
-        if action == 'change':
-            if method == 'GET':
-                resource_id = parsed_url.path.split('/')[-1]
-                change_response = {
-                    'GetChangeResponse': {
-                        'ChangeInfo': {
-                            'Id': resource_id,
-                            'Status': 'INSYNC',
-                            'SubmittedAt': timestamp_millis()
-                        }
+        if action == 'change' and method == 'GET':
+            resource_id = parsed_url.path.split('/')[-1]
+            change_response = {
+                'GetChangeResponse': {
+                    'ChangeInfo': {
+                        'Id': resource_id,
+                        'Status': 'INSYNC',
+                        'SubmittedAt': timestamp_millis()
                     }
                 }
-                body = xmltodict.unparse(change_response)
-                response = requests_response(body)
-                return response
+            }
+            body = xmltodict.unparse(change_response)
+            return requests_response(body)
 
         return True
 
@@ -89,12 +87,11 @@ class ProxyListenerRoute53(PersistingProxyListener):
             def _zone(z):
                 zone_id = z['HostedZoneId']
                 hosted_zone = client.get_hosted_zone(Id=zone_id).get('HostedZone', {})
-                result = {
+                return {
                     'HostedZoneId': zone_id,
                     'Name': hosted_zone.get('Name'),
                     'Owner': {'OwningAccount': constants.TEST_AWS_ACCOUNT_ID}
                 }
-                return result
             client = aws_stack.connect_to_service('route53')
             req_data = parse_request_data(method, path, data)
             vpc_id = req_data.get('vpcid')

@@ -92,9 +92,10 @@ def set_moto_account_ids(resource_json):
     def fix_ids(obj, **kwargs):
         if isinstance(obj, dict):
             for key, value in obj.items():
-                if isinstance(value, six.string_types):
-                    if 'arn' in key.lower() or (':%s:' % TEST_AWS_ACCOUNT_ID) in value:
-                        obj[key] = value.replace(TEST_AWS_ACCOUNT_ID, MOTO_ACCOUNT_ID)
+                if isinstance(value, six.string_types) and (
+                    'arn' in key.lower() or (':%s:' % TEST_AWS_ACCOUNT_ID) in value
+                ):
+                    obj[key] = value.replace(TEST_AWS_ACCOUNT_ID, MOTO_ACCOUNT_ID)
         return obj
 
     return recurse_object(resource_json, fix_ids)
@@ -119,9 +120,8 @@ def get_entity_id(entity, resource_json=None):
                     return result
             except Exception:
                 pass
-        if isinstance(entity, dict):
-            if attr in entity:
-                return entity.get(attr)
+        if isinstance(entity, dict) and attr in entity:
+            return entity.get(attr)
     # fall back to classes that use params as the dict of entity parameters
     if hasattr(entity, 'params'):
         for key, value in (entity.params or {}).items():
@@ -256,35 +256,35 @@ def apply_patches():
 
                 LOG.warning('Unable to resolve "Ref" attribute for: %s - %s - %s', resource_json, rs, type(rs))
 
-            if 'Fn::Sub' in resource_json:
-                if isinstance(resource_json['Fn::Sub'], list):
-                    for k, v in resource_json['Fn::Sub'][1].items():
-                        resource_json['Fn::Sub'][1][k] = clean_json(v, resources_map)
+            if 'Fn::Sub' in resource_json and isinstance(
+                resource_json['Fn::Sub'], list
+            ):
+                for k, v in resource_json['Fn::Sub'][1].items():
+                    resource_json['Fn::Sub'][1][k] = clean_json(v, resources_map)
 
-                    for key, val in resources_map._parsed_resources.items():
-                        if not val:
-                            continue
+                for key, val in resources_map._parsed_resources.items():
+                    if not val:
+                        continue
 
-                        if not isinstance(val, str):
-                            continue
-
-                        for k, v in resource_json['Fn::Sub'][1].items():
-                            if isinstance(v, dict) and 'Ref' in v:
-                                if v['Ref'] == key:
-                                    resource_json['Fn::Sub'][1][k] = val
-
-                        resource_json['Fn::Sub'][0] = resource_json['Fn::Sub'][0].replace('${%s}' % key, val)
+                    if not isinstance(val, str):
+                        continue
 
                     for k, v in resource_json['Fn::Sub'][1].items():
-                        if v is not None:
-                            resource_json['Fn::Sub'][0] = resource_json['Fn::Sub'][0].replace('${%s}' % k, str(v))
+                        if isinstance(v, dict) and 'Ref' in v and v['Ref'] == key:
+                            resource_json['Fn::Sub'][1][k] = val
 
-                    result = resource_json['Fn::Sub'][0]
+                    resource_json['Fn::Sub'][0] = resource_json['Fn::Sub'][0].replace('${%s}' % key, val)
 
-                    stack_name = resources_map._parsed_resources['AWS::StackName']
-                    result = template_deployer.resolve_placeholders_in_string(result,
-                        stack_name=stack_name, resources=resources_map._resource_json_map)
-                    return result
+                for k, v in resource_json['Fn::Sub'][1].items():
+                    if v is not None:
+                        resource_json['Fn::Sub'][0] = resource_json['Fn::Sub'][0].replace('${%s}' % k, str(v))
+
+                result = resource_json['Fn::Sub'][0]
+
+                stack_name = resources_map._parsed_resources['AWS::StackName']
+                result = template_deployer.resolve_placeholders_in_string(result,
+                    stack_name=stack_name, resources=resources_map._resource_json_map)
+                return result
 
         return rs
 
@@ -307,10 +307,14 @@ def apply_patches():
             if hasattr(resources_map, '_deleted'):
                 return
 
-            result = _parse_and_create_resource(
-                logical_id, resource_json, resources_map, region_name, force_create=force_create
+            return _parse_and_create_resource(
+                logical_id,
+                resource_json,
+                resources_map,
+                region_name,
+                force_create=force_create,
             )
-            return result
+
         except DependencyNotYetSatisfied as e:
             register_unresolved_refs(logical_id, resource_json, resources_map, e.resource_ids, details=e)
             raise
@@ -320,8 +324,10 @@ def apply_patches():
 
     def parse_and_update_resource(logical_id, resource_json, resources_map, region_name):
         try:
-            result = _parse_and_create_resource(logical_id, resource_json, resources_map, region_name, update=True)
-            return result
+            return _parse_and_create_resource(
+                logical_id, resource_json, resources_map, region_name, update=True
+            )
+
         except DependencyNotYetSatisfied as e:
             register_unresolved_refs(logical_id, resource_json, resources_map, e.resource_ids, details=e)
             raise
@@ -606,8 +612,7 @@ def apply_patches():
 
     def resource_map_delete(self, *args, **kwargs):
         self._deleted = True
-        result = resource_map_delete_orig(self, *args, **kwargs)
-        return result
+        return resource_map_delete_orig(self, *args, **kwargs)
 
     resource_map_delete_orig = parsing.ResourceMap.delete
     parsing.ResourceMap.delete = resource_map_delete
@@ -618,8 +623,7 @@ def apply_patches():
         for res_id, res_details in resources_json_map.items():
             # add some fixes and default props which otherwise cause deployments to fail
             add_default_resource_props(res_details, stack_name, resource_id=res_id)
-        result = resource_map_create_orig(self, template, *args, **kwargs)
-        return result
+        return resource_map_create_orig(self, template, *args, **kwargs)
 
     resource_map_create_orig = parsing.ResourceMap.create
     parsing.ResourceMap.create = resource_map_create
@@ -631,8 +635,7 @@ def apply_patches():
             # add some fixes and default props which otherwise cause deployments to fail
             add_default_resource_props(res_details, stack_name, resource_id=res_id,
                 existing_resources=self._resource_json_map)
-        result = resource_map_update_orig(self, template, *args, **kwargs)
-        return result
+        return resource_map_update_orig(self, template, *args, **kwargs)
 
     resource_map_update_orig = parsing.ResourceMap.update
     parsing.ResourceMap.update = resource_map_update
@@ -643,9 +646,10 @@ def apply_patches():
         for res_id, resource in resources.items():
             props = resource.get('Properties', {})
             for prop_name, prop_value in props.items():
-                if isinstance(prop_value, dict):
-                    if isinstance(prop_value.get('Fn::Sub'), str):
-                        prop_value['Fn::Sub'] = [prop_value['Fn::Sub'], {}]
+                if isinstance(prop_value, dict) and isinstance(
+                    prop_value.get('Fn::Sub'), str
+                ):
+                    prop_value['Fn::Sub'] = [prop_value['Fn::Sub'], {}]
 
         self._resource_json_map = resources or {}
         self._resource_json_map_orig = clone_safe(self._resource_json_map)
@@ -1372,7 +1376,7 @@ def inject_stats_endpoint():
         all_objects = muppy.get_objects()
         result = summary.summarize(all_objects)
         result = result[0:20]
-        summary = '\n'.join([line for line in summary.format_(result)])
+        summary = '\n'.join(summary.format_(result))
         result = '%s\n\n%s' % (summary, json.dumps(result))
         return result, 200, {'content-type': 'text/plain'}
 

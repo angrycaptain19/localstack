@@ -254,8 +254,7 @@ def get_lambda_event_sources(func_name=None, env=None):
         cmd = '%s --function-name %s' % (cmd, func_name)
     out = cmd_lambda(cmd, env=env)
     out = json.loads(out)
-    result = out['EventSourceMappings']
-    return result
+    return out['EventSourceMappings']
 
 
 def get_lambda_code(func_name, retries=1, cache_time=None, env=None):
@@ -411,8 +410,7 @@ def read_kinesis_iterator(shard_iterator, max_results=10, env=None):
     data = cmd_kinesis('get-records --shard-iterator %s --limit %s' %
         (shard_iterator, max_results), env, cache_duration_secs=0)
     data = json.loads(to_str(data))
-    result = data
-    return result
+    return data
 
 
 def get_kinesis_events(stream_name, shard_id, max_results=10, env=None):
@@ -424,8 +422,7 @@ def get_kinesis_events(stream_name, shard_id, max_results=10, env=None):
             r['ApproximateArrivalTimestamp'] = mktime(r['ApproximateArrivalTimestamp'])
     except Exception:
         pass
-    result = {'events': records}
-    return result
+    return {'events': records}
 
 
 def get_graph(name_filter='.*', env=None, **kwargs):

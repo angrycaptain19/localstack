@@ -33,10 +33,10 @@ deser = TypeDeserializer()
 
 
 def get_delivery_stream_names():
-    names = []
-    for name, stream in iteritems(DELIVERY_STREAMS):
-        names.append(stream['DeliveryStreamName'])
-    return names
+    return [
+        stream['DeliveryStreamName']
+        for name, stream in iteritems(DELIVERY_STREAMS)
+    ]
 
 
 def get_delivery_stream_tags(stream_name, exclusive_start_tag_key=None, limit=50):
@@ -259,9 +259,7 @@ def post_request():
         stream_name = data['DeliveryStreamName']
         records = data['Records']
         put_records(stream_name, records)
-        request_responses = []
-        for i in records:
-            request_responses.append({'RecordId': str(uuid.uuid4())})
+        request_responses = [{'RecordId': str(uuid.uuid4())} for i in records]
         response = {
             'FailedPutCount': 0,
             'RequestResponses': request_responses

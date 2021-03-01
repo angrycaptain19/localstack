@@ -42,7 +42,7 @@ def multi_value_dict_for_list(elements):
         key = to_str(key)
         temp_mv_dict[key].append(value)
 
-    return dict((k, tuple(v)) for k, v in temp_mv_dict.items())
+    return {k: tuple(v) for k, v in temp_mv_dict.items()}
 
 
 def get_handler_file_from_name(handler_name, runtime=LAMBDA_DEFAULT_RUNTIME):

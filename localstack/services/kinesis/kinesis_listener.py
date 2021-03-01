@@ -105,7 +105,7 @@ class ProxyListenerKinesis(ProxyListener):
             if 'Records' in response_body:
                 response_records = response_body['Records']
                 records = data['Records']
-                for index in range(0, len(records)):
+                for index in range(len(records)):
                     record = records[index]
                     # Note: avoid adding 'encryptionType':'NONE' in the event_record, as this breaks .NET Lambdas
                     event_record = {
@@ -156,9 +156,7 @@ class ProxyListenerKinesis(ProxyListener):
             return response
 
     def sdk_is_v2(self, user_agent):
-        if re.search(r'\/2.\d+.\d+', user_agent):
-            return True
-        return False
+        return bool(re.search(r'\/2.\d+.\d+', user_agent))
 
     def replace_in_encoded(self, data):
         if not data:
@@ -201,7 +199,7 @@ def subscribe_to_shard(data):
         yield convert_to_binary_event_payload('', event_type='initial-response')
         iter = iterator
         # TODO: find better way to run loop up to max 5 minutes (until connection terminates)!
-        for i in range(5 * 60):
+        for _ in range(5 * 60):
             result = kinesis.get_records(ShardIterator=iter)
             iter = result.get('NextShardIterator')
             records = result.get('Records', [])

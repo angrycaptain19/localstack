@@ -27,8 +27,7 @@ def patch_lambda():
             #  fetching Lambda details from LocalStack API directly
             client = aws_stack.connect_to_service('lambda')
             lambda_name = aws_stack.lambda_function_name(args[0])
-            response = client.get_function(FunctionName=lambda_name)
-            return response
+            return client.get_function(FunctionName=lambda_name)
 
         return get_function
 
@@ -92,7 +91,7 @@ def patch_lambda():
 
     def put_log_events_model(self, log_group_name, log_stream_name, log_events, sequence_token):
         self.lastIngestionTime = int(unix_time_millis())
-        self.storedBytes += sum([len(log_event['message']) for log_event in log_events])
+        self.storedBytes += sum(len(log_event['message']) for log_event in log_events)
         events = [
             logs_models.LogEvent(self.lastIngestionTime, log_event) for log_event in log_events
         ]

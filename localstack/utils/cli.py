@@ -75,11 +75,11 @@ Options:
     """
     args.update(docopt(cmd_config.__doc__.strip(), argv=argv))
 
-    if args['<subcommand>'] == 'validate':
-        docker_compose_file_name = args.get('--file') or 'docker-compose.yml'
-        validate_localstack_config(docker_compose_file_name)
-    else:
+    if args['<subcommand>'] != 'validate':
         raise Exception('Please specify a valid command')
+
+    docker_compose_file_name = args.get('--file') or 'docker-compose.yml'
+    validate_localstack_config(docker_compose_file_name)
 
 
 def cmd_web(argv, args):

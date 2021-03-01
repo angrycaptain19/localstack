@@ -66,11 +66,9 @@ def _format_attributes_names(req_data):
 
 def _get_attributes_forward_request(method, path, headers, req_data, forward_attrs):
     req_data_new = dict([(k, v) for k, v in req_data.items() if not k.startswith('Attribute.')])
-    i = 1
-    for k, v in forward_attrs.items():
+    for i, (k, v) in enumerate(forward_attrs.items(), start=1):
         req_data_new['Attribute.%s.Name' % i] = [k]
         req_data_new['Attribute.%s.Value' % i] = [v]
-        i += 1
     data = urlencode(req_data_new, doseq=True)
     return Request(data=data, headers=headers, method=method)
 
@@ -86,9 +84,8 @@ def _set_queue_attributes(queue_url, req_data):
         if k in UNSUPPORTED_ATTRIBUTE_NAMES:
             try:
                 _v = json.loads(v)
-                if isinstance(_v, dict):
-                    if 'maxReceiveCount' in _v:
-                        _v['maxReceiveCount'] = int(_v['maxReceiveCount'])
+                if isinstance(_v, dict) and 'maxReceiveCount' in _v:
+                    _v['maxReceiveCount'] = int(_v['maxReceiveCount'])
 
                 local_attrs.update(dict({k: json.dumps(_v)}))
             except Exception:
@@ -96,8 +93,13 @@ def _set_queue_attributes(queue_url, req_data):
 
     QUEUE_ATTRIBUTES[queue_url] = QUEUE_ATTRIBUTES.get(queue_url) or {}
     QUEUE_ATTRIBUTES[queue_url].update(local_attrs)
-    forward_attrs = dict([(k, v) for k, v in attrs.items() if k not in UNSUPPORTED_ATTRIBUTE_NAMES])
-    return forward_attrs
+    return dict(
+        [
+            (k, v)
+            for k, v in attrs.items()
+            if k not in UNSUPPORTED_ATTRIBUTE_NAMES
+        ]
+    )
 
 
 def _fix_dlq_arn_in_attributes(req_data):
@@ -113,9 +115,10 @@ def _fix_dlq_arn_in_attributes(req_data):
 
 
 def _fix_redrive_policy(match):
-    result = '<Attribute><Name>RedrivePolicy</Name><Value>{%s}</Value></Attribute>' % (
-        match.group(1).replace(' ', ''))
-    return result
+    return (
+        '<Attribute><Name>RedrivePolicy</Name><Value>{%s}</Value></Attribute>'
+        % (match.group(1).replace(' ', ''))
+    )
 
 
 def _add_queue_attributes(path, req_data, content_str, headers):
@@ -189,10 +192,7 @@ def format_list_dl_source_queues_response(queues):
                         </ListDeadLetterSourceQueuesResult>
                     </ListDeadLetterSourceQueuesResponse>"""
 
-    queue_urls = ''
-    for q in queues:
-        queue_urls += '<QueueUrl>{}</QueueUrl>'.format(q)
-
+    queue_urls = ''.join('<QueueUrl>{}</QueueUrl>'.format(q) for q in queues)
     return content_str.format(XMLNS_SQS, queue_urls)
 
 
@@ -218,9 +218,7 @@ def get_external_port(headers, request_handler):
 
 def validate_empty_message_batch(data, req_data):
     data = to_str(data).split('Entries=')
-    if len(data) > 1 and not req_data.get('Entries'):
-        return True
-    return False
+    return len(data) > 1 and not req_data.get('Entries')
 
 
 def is_sqs_queue_url(url):

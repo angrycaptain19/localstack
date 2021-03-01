@@ -477,12 +477,15 @@ def process_sqs_message(queue_name, region_name=None):
 
 def get_event_sources(func_name=None, source_arn=None):
     region = LambdaRegion.get()
-    result = []
-    for m in region.event_source_mappings:
-        if not func_name or (m['FunctionArn'] in [func_name, func_arn(func_name)]):
-            if _arn_match(mapped=m['EventSourceArn'], searched=source_arn):
-                result.append(m)
-    return result
+    return [
+        m
+        for m in region.event_source_mappings
+        if (
+            not func_name
+            or (m['FunctionArn'] in [func_name, func_arn(func_name)])
+        )
+        and _arn_match(mapped=m['EventSourceArn'], searched=source_arn)
+    ]
 
 
 def _arn_match(mapped, searched):
@@ -594,13 +597,13 @@ def run_lambda(event, context, func_arn, version=None, suppress_output=False, as
 def exec_lambda_code(script, handler_function='handler', lambda_cwd=None, lambda_env=None):
     if lambda_cwd or lambda_env:
         EXEC_MUTEX.acquire()
-        if lambda_cwd:
-            previous_cwd = os.getcwd()
-            os.chdir(lambda_cwd)
-            sys.path = [lambda_cwd] + sys.path
-        if lambda_env:
-            previous_env = dict(os.environ)
-            os.environ.update(lambda_env)
+    if lambda_cwd:
+        previous_cwd = os.getcwd()
+        os.chdir(lambda_cwd)
+        sys.path = [lambda_cwd] + sys.path
+    if lambda_env:
+        previous_env = dict(os.environ)
+        os.environ.update(lambda_env)
     # generate lambda file name
     lambda_id = 'l_%s' % short_uid()
     lambda_file = LAMBDA_SCRIPT_PATTERN.replace('*', lambda_id)
@@ -687,9 +690,8 @@ def get_java_handler(zip_file_content, main_file, func_details=None):
     """
     if is_zip_file(zip_file_content):
         def execute(event, context):
-            result = lambda_executors.EXECUTOR_LOCAL.execute_java_lambda(
+            return lambda_executors.EXECUTOR_LOCAL.execute_java_lambda(
                 event, context, main_file=main_file, func_details=func_details)
-            return result
         return execute
     raise ClientError(error_response(
         'Unable to extract Java Lambda handler - file is not a valid zip/jar file', 400, error_type='ValidationError'))
@@ -1263,13 +1265,11 @@ def generate_policy_statement(sid, action, arn, sourcearn, principal):
 
 def generate_policy(sid, action, arn, sourcearn, principal):
     new_statement = generate_policy_statement(sid, action, arn, sourcearn, principal)
-    policy = {
+    return {
         'Version': IAM_POLICY_VERSION,
         'Id': 'LambdaFuncAccess-%s' % sid,
         'Statement': [new_statement]
     }
-
-    return policy
 
 
 @app.route('%s/functions/<function>/policy' % PATH_ROOT, methods=['POST'])
@@ -1493,7 +1493,7 @@ def get_event_source_mapping(mapping_uuid):
     mappings = region.event_source_mappings
     mappings = [m for m in mappings if mapping_uuid == m.get('UUID')]
 
-    if len(mappings) == 0:
+    if not mappings:
         return not_found_error()
     return jsonify(mappings[0])
 

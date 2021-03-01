@@ -70,18 +70,17 @@ class KinesisStream(Component):
             try:
                 if record['NextShardIterator'] is None:
                     break
-                else:
-                    next_entry = self.conn.get_records(record['NextShardIterator'])
-                    if len(next_entry['Records']):
-                        print(next_entry['Records'][0]['Data'])
-                    record = next_entry
+                next_entry = self.conn.get_records(record['NextShardIterator'])
+                if len(next_entry['Records']):
+                    print(next_entry['Records'][0]['Data'])
+                record = next_entry
             except Exception as e:
                 print('Error reading from Kinesis stream "%s": %s' % (self.stream_name, e))
 
     def wait_for(self):
         GET_STATUS_SLEEP_SECS = 5
         GET_STATUS_RETRIES = 50
-        for i in range(0, GET_STATUS_RETRIES):
+        for _ in range(GET_STATUS_RETRIES):
             try:
                 status = self.get_status()
                 if status == 'ACTIVE':
@@ -215,18 +214,18 @@ class LambdaFunction(Component):
 
         if self.on_successful_invocation or self.on_failed_invocation:
             response.update({'DestinationConfig': {}})
-            if self.on_successful_invocation:
-                response['DestinationConfig'].update({
-                    'OnSuccess': {
-                        'Destination': self.on_successful_invocation
-                    }
-                })
-            if self.on_failed_invocation:
-                response['DestinationConfig'].update({
-                    'OnFailure': {
-                        'Destination': self.on_failed_invocation
-                    }
-                })
+        if self.on_successful_invocation:
+            response['DestinationConfig'].update({
+                'OnSuccess': {
+                    'Destination': self.on_successful_invocation
+                }
+            })
+        if self.on_failed_invocation:
+            response['DestinationConfig'].update({
+                'OnFailure': {
+                    'Destination': self.on_failed_invocation
+                }
+            })
         if not response:
             return None
         response.update({
@@ -421,9 +420,8 @@ class EventSource(Component):
             for o in EventSource.filter_type(pool, type):
                 if o.name() == obj:
                     return o
-                if type == ElasticSearch:
-                    if o.endpoint == obj:
-                        return o
+                if type == ElasticSearch and o.endpoint == obj:
+                    return o
         else:
             print("Unexpected object name: '%s'" % obj)
         return inst

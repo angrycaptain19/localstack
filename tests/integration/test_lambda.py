@@ -154,9 +154,9 @@ class LambdaTestBase(unittest.TestCase):
         log_group_name = '/aws/lambda/%s' % func_name
         streams = logs_client.describe_log_streams(logGroupName=log_group_name)['logStreams']
         streams = sorted(streams, key=lambda x: x['creationTime'], reverse=True)
-        log_events = logs_client.get_log_events(
-            logGroupName=log_group_name, logStreamName=streams[0]['logStreamName'])['events']
-        return log_events
+        return logs_client.get_log_events(
+            logGroupName=log_group_name, logStreamName=streams[0]['logStreamName']
+        )['events']
 
 
 class TestLambdaBaseFeatures(unittest.TestCase):
@@ -697,12 +697,10 @@ class TestLambdaBaseFeatures(unittest.TestCase):
         stream_summary = kinesis.describe_stream_summary(StreamName=stream_name)
         self.assertEqual(stream_summary['StreamDescriptionSummary']['OpenShardCount'], 1)
         num_events_kinesis = 10
-        kinesis.put_records(Records=[
-            {
+        kinesis.put_records(Records=[{
                 'Data': '{}',
                 'PartitionKey': 'test_%s' % i
-            } for i in range(0, num_events_kinesis)
-        ], StreamName=stream_name)
+            } for i in range(num_events_kinesis)], StreamName=stream_name)
 
         events = get_lambda_log_events(function_name)
         self.assertEqual(len(events[0]['Records']), 10)
@@ -1627,7 +1625,7 @@ class TestDockerBehaviour(LambdaTestBase):
         durations = []
         num_iterations = 3
 
-        for i in range(0, num_iterations + 1):
+        for i in range(num_iterations + 1):
             prev_invoke_time = None
             if i > 0:
                 prev_invoke_time = executor.function_invoke_times[func_arn]

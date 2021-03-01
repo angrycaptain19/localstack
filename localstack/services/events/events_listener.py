@@ -64,8 +64,7 @@ def convert_schedule_to_cron(schedule):
     """ Convert Events schedule like "cron(0 20 * * ? *)" or "rate(5 minutes)" """
     cron_regex = r'\s*cron\s*\(([^\)]*)\)\s*'
     if re.match(cron_regex, schedule):
-        cron = re.sub(cron_regex, r'\1', schedule)
-        return cron
+        return re.sub(cron_regex, r'\1', schedule)
     rate_regex = r'\s*rate\s*\(([^\)]*)\)\s*'
     if re.match(rate_regex, schedule):
         rate = re.sub(rate_regex, r'\1', schedule)

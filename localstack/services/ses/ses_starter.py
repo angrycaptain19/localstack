@@ -53,14 +53,14 @@ def apply_patches():
         subject = self.querystring.get('Message.Subject.Data')[0]
         destinations = {'ToAddresses': [],
                         'CcAddresses': [], 'BccAddresses': []}
-        for dest_type in destinations:
+        for dest_type, value in destinations.items():
             # consume up to 51 to allow exception
             for i in range(1, 52):
                 field = 'Destination.%s.member.%s' % (dest_type, i)
                 address = self.querystring.get(field)
                 if address is None:
                     break
-                destinations[dest_type].append(address[0])
+                value.append(address[0])
 
         LOGGER.debug('Raw email\nFrom: %s\nTo: %s\nSubject: %s\nBody:\n%s'
                      % (source, destinations, subject, body))

@@ -90,7 +90,7 @@ class SQSTest(unittest.TestCase):
 
         # publish/receive message
         self.client.send_message(QueueUrl=queue_url, MessageBody='msg123')
-        for i in range(2):
+        for _ in range(2):
             messages = self.client.receive_message(QueueUrl=queue_url, VisibilityTimeout=0)['Messages']
             self.assertEqual(len(messages), 1)
             self.assertEqual(messages[0]['Body'], 'msg123')
@@ -107,7 +107,7 @@ class SQSTest(unittest.TestCase):
         self.assertFalse(response.get('Messages'))
         self.client.change_message_visibility(QueueUrl=queue_url,
                                               ReceiptHandle=messages[0]['ReceiptHandle'], VisibilityTimeout=0)
-        for i in range(2):
+        for _ in range(2):
             messages = self.client.receive_message(QueueUrl=queue_url, VisibilityTimeout=0)['Messages']
             self.assertEquals(len(messages), 1)
             self.assertEquals(messages[0]['Body'], 'msg234')
@@ -128,15 +128,11 @@ class SQSTest(unittest.TestCase):
                 MessageAttributeNames=['All']
             )
             kwds.update(kwargs)
-            messages = self.client.receive_message(**kwds)
-            return messages
+            return self.client.receive_message(**kwds)
 
         def get_hashes(messages, outgoing=False):
             body_key = 'MD5OfMessageBody' if outgoing else 'MD5OfBody'
-            return set([
-                (m[body_key], m['MD5OfMessageAttributes'])
-                for m in messages
-            ])
+            return {(m[body_key], m['MD5OfMessageAttributes']) for m in messages}
 
         messages_to_send = [
             {
@@ -256,13 +252,13 @@ class SQSTest(unittest.TestCase):
 
         queue_url = self.client.create_queue(QueueName=queue_name)['QueueUrl']
 
-        payload = {}
-        # String Attributes must not contain non-printable characters
-        # See: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html
-        attrs = {'attr1': {
-            'StringValue': 'invalid characters, %s, %s, %s' % (chr(8), chr(11), chr(12)), 'DataType': 'String'
-        }}
         with self.assertRaises(Exception):
+            payload = {}
+            # String Attributes must not contain non-printable characters
+            # See: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html
+            attrs = {'attr1': {
+                'StringValue': 'invalid characters, %s, %s, %s' % (chr(8), chr(11), chr(12)), 'DataType': 'String'
+            }}
             self.client.send_message(QueueUrl=queue_url, MessageBody=json.dumps(payload),
                                      MessageAttributes=attrs)
 
@@ -552,7 +548,7 @@ class SQSTest(unittest.TestCase):
             )
 
         messages = {}
-        for i in range(number_of_messages):
+        for _ in range(number_of_messages):
             rs = self.client.receive_message(QueueUrl=queue_url)
             m = rs['Messages'][0]
             messages[m['MessageId']] = m['Body']

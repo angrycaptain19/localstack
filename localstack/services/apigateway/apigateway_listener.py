@@ -70,9 +70,11 @@ class ProxyListenerApiGateway(ProxyListener):
 
     def return_response(self, method, path, data, headers, response):
         # fix backend issue (missing support for API documentation)
-        if re.match(r'/restapis/[^/]+/documentation/versions', path):
-            if response.status_code == 404:
-                return requests_response({'position': '1', 'items': []})
+        if (
+            re.match(r'/restapis/[^/]+/documentation/versions', path)
+            and response.status_code == 404
+        ):
+            return requests_response({'position': '1', 'items': []})
 
         # add missing implementations
         if response.status_code == 404:
@@ -497,7 +499,7 @@ def get_lambda_event_request_context(method, path, data, headers, integration_ur
     source_ip = headers.get('X-Forwarded-For', ',').split(',')[-2].strip()
     integration_uri = integration_uri or ''
     account_id = integration_uri.split(':lambda:path')[-1].split(':function:')[0].split(':')[-1]
-    request_context = {
+    return {
         # adding stage to the request context path.
         # https://github.com/localstack/localstack/issues/2210
         'path': '/' + stage + relative_path,
@@ -514,7 +516,6 @@ def get_lambda_event_request_context(method, path, data, headers, integration_ur
         'requestTime': datetime.datetime.utcnow(),
         'requestTimeEpoch': int(time.time() * 1000),
     }
-    return request_context
 
 
 # instantiate listener

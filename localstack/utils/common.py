@@ -89,12 +89,12 @@ class CustomEncoder(json.JSONEncoder):
         if isinstance(o, (datetime, date)):
             return timestamp_millis(o)
         if isinstance(o, yaml.ScalarNode):
-            if o.tag == 'tag:yaml.org,2002:int':
-                return int(o.value)
-            if o.tag == 'tag:yaml.org,2002:float':
-                return float(o.value)
             if o.tag == 'tag:yaml.org,2002:bool':
                 return bool(o.value)
+            elif o.tag == 'tag:yaml.org,2002:float':
+                return float(o.value)
+            elif o.tag == 'tag:yaml.org,2002:int':
+                return int(o.value)
             return str(o.value)
         try:
             if isinstance(o, six.binary_type):
@@ -397,9 +397,7 @@ def is_string(s, include_unicode=True, exclude_binary=False):
         return False
     if isinstance(s, str):
         return True
-    if include_unicode and isinstance(s, six.text_type):
-        return True
-    return False
+    return bool(include_unicode and isinstance(s, six.text_type))
 
 
 def is_string_or_bytes(s):
@@ -510,7 +508,7 @@ def port_can_be_bound(port):
 
 def get_free_tcp_port(blacklist=None):
     blacklist = blacklist or []
-    for i in range(10):
+    for _ in range(10):
         tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tcp.bind(('', 0))
         addr, port = tcp.getsockname()
@@ -560,7 +558,7 @@ def retry(function, retries=3, sleep=1, sleep_before=0, **kwargs):
     raise_error = None
     if sleep_before > 0:
         time.sleep(sleep_before)
-    for i in range(0, retries + 1):
+    for _ in range(retries + 1):
         try:
             return function(**kwargs)
         except Exception as error:
@@ -641,9 +639,13 @@ def obj_to_xml(obj):
         Does NOT add a common root element if the given obj is a list.
         Does NOT work for nested dict structures. """
     if isinstance(obj, list):
-        return ''.join([obj_to_xml(o) for o in obj])
+        return ''.join(obj_to_xml(o) for o in obj)
     if isinstance(obj, dict):
-        return ''.join(['<{k}>{v}</{k}>'.format(k=k, v=obj_to_xml(v)) for (k, v) in obj.items()])
+        return ''.join(
+            '<{k}>{v}</{k}>'.format(k=k, v=obj_to_xml(v))
+            for (k, v) in obj.items()
+        )
+
     return str(obj)
 
 
@@ -755,7 +757,7 @@ def format_bytes(count, default='n/a'):
     for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
         if cnt < 1000:
             return '%s%s' % (format_number(cnt, decimals=3), unit)
-        cnt = cnt / 1000.0
+        cnt /= 1000.0
     return count
 
 
@@ -890,13 +892,9 @@ def fix_json_keys(item):
     """ make sure the keys of a JSON are strings (not binary type or other) """
     item_copy = item
     if isinstance(item, list):
-        item_copy = []
-        for i in item:
-            item_copy.append(fix_json_keys(i))
+        item_copy = [fix_json_keys(i) for i in item]
     if isinstance(item, dict):
-        item_copy = {}
-        for k, v in item.items():
-            item_copy[to_str(k)] = fix_json_keys(v)
+        item_copy = {to_str(k): fix_json_keys(v) for k, v in item.items()}
     return item_copy
 
 
@@ -923,7 +921,7 @@ def assign_to_path(target, path, value):
 def save_file(file, content, append=False):
     mode = 'a' if append else 'w+'
     if not isinstance(content, six.string_types):
-        mode = mode + 'b'
+        mode += 'b'
     # make sure that the parent dir exsits
     mkdir(os.path.dirname(file))
     # store file contents
@@ -1178,7 +1176,7 @@ def generate_ssl_cert(target_file=None, overwrite=False, random=False, return_co
     from OpenSSL import crypto
 
     def all_exist(*files):
-        return all([os.path.exists(f) for f in files])
+        return all(os.path.exists(f) for f in files)
 
     def store_cert_key_files(base_filename):
         key_file_name = '%s.key' % base_filename

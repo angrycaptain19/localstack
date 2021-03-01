@@ -101,11 +101,11 @@ class ProxyListenerDynamoDB(ProxyListener):
 
         ProxyListenerDynamoDB.thread_local.existing_item = None
 
-        if action == '%s.CreateTable' % ACTION_PREFIX:
-            # Check if table exists, to avoid error log output from DynamoDBLocal
-            if self.table_exists(ddb_client, data['TableName']):
-                return error_response(message='Table already created',
-                                      error_type='ResourceInUseException', code=400)
+        if action == '%s.CreateTable' % ACTION_PREFIX and self.table_exists(
+            ddb_client, data['TableName']
+        ):
+            return error_response(message='Table already created',
+                                  error_type='ResourceInUseException', code=400)
 
         if action == '%s.CreateGlobalTable' % ACTION_PREFIX:
             return create_global_table(data)
@@ -158,12 +158,13 @@ class ProxyListenerDynamoDB(ProxyListener):
             ProxyListenerDynamoDB.thread_local.existing_items = existing_items
 
         elif action == '%s.Query' % ACTION_PREFIX:
-            if data.get('IndexName'):
-                if not is_index_query_valid(to_str(data['TableName']), data.get('Select')):
-                    return error_response(
-                        message='One or more parameter values were invalid: Select type ALL_ATTRIBUTES '
-                                'is not supported for global secondary index id-index because its projection '
-                                'type is not ALL', error_type='ValidationException', code=400)
+            if data.get('IndexName') and not is_index_query_valid(
+                to_str(data['TableName']), data.get('Select')
+            ):
+                return error_response(
+                    message='One or more parameter values were invalid: Select type ALL_ATTRIBUTES '
+                            'is not supported for global secondary index id-index because its projection '
+                            'type is not ALL', error_type='ValidationException', code=400)
 
         elif action == '%s.TransactWriteItems' % ACTION_PREFIX:
             existing_items = []
@@ -206,7 +207,10 @@ class ProxyListenerDynamoDB(ProxyListener):
             fix_headers_for_updated_response(response)
             return response
 
-        elif action == '%s.TagResource' % ACTION_PREFIX or action == '%s.UntagResource' % ACTION_PREFIX:
+        elif action in [
+            '%s.TagResource' % ACTION_PREFIX,
+            '%s.UntagResource' % ACTION_PREFIX,
+        ]:
             response = Response()
             response.status_code = 200
             response._content = ''  # returns an empty body on success.
@@ -338,10 +342,9 @@ class ProxyListenerDynamoDB(ProxyListener):
                 record['dynamodb']['OldImage'] = old_item
 
         elif action == '%s.CreateTable' % ACTION_PREFIX:
-            if 'StreamSpecification' in data:
-                if response.status_code == 200:
-                    content = json.loads(to_str(response._content))
-                    create_dynamodb_stream(data, content['TableDescription'].get('LatestStreamLabel'))
+            if 'StreamSpecification' in data and response.status_code == 200:
+                content = json.loads(to_str(response._content))
+                create_dynamodb_stream(data, content['TableDescription'].get('LatestStreamLabel'))
 
             event_publisher.fire_event(event_publisher.EVENT_DYNAMODB_CREATE_TABLE,
                 payload={'n': event_publisher.get_hash(table_name)})
@@ -365,10 +368,9 @@ class ProxyListenerDynamoDB(ProxyListener):
             return
 
         elif action == '%s.UpdateTable' % ACTION_PREFIX:
-            if 'StreamSpecification' in data:
-                if response.status_code == 200:
-                    content = json.loads(to_str(response._content))
-                    create_dynamodb_stream(data, content['TableDescription'].get('LatestStreamLabel'))
+            if 'StreamSpecification' in data and response.status_code == 200:
+                content = json.loads(to_str(response._content))
+                create_dynamodb_stream(data, content['TableDescription'].get('LatestStreamLabel'))
             return
 
         elif action == '%s.TagResource' % ACTION_PREFIX:
@@ -531,8 +533,7 @@ def create_global_table(data):
     for group in data.get('ReplicationGroup', []):
         group['ReplicaStatus'] = 'ACTIVE'
         group['ReplicaStatusDescription'] = 'Replica active'
-    result = {'GlobalTableDescription': data}
-    return result
+    return {'GlobalTableDescription': data}
 
 
 def describe_global_table(data):
@@ -540,8 +541,7 @@ def describe_global_table(data):
     details = GLOBAL_TABLES.get(table_name)
     if not details:
         return get_error_message('Global Table with this name does not exist', 'GlobalTableNotFoundException')
-    result = {'GlobalTableDescription': details}
-    return result
+    return {'GlobalTableDescription': details}
 
 
 def list_global_tables(data):
@@ -572,8 +572,7 @@ def update_global_table(data):
                 'ReplicaStatusDescription': 'Replica active'
             }
             details['ReplicationGroup'].append(new_group)
-    result = {'GlobalTableDescription': details}
-    return result
+    return {'GlobalTableDescription': details}
 
 
 def is_index_query_valid(table_name, index_query_type):
@@ -622,7 +621,7 @@ def find_existing_item(put_item, table_name=None):
     else:
         schema = get_table_schema(table_name)
         schemas = [schema['Table']['KeySchema']]
-        for index in schema['Table'].get('GlobalSecondaryIndexes', []):
+        for _ in schema['Table'].get('GlobalSecondaryIndexes', []):
             # TODO
             # schemas.append(index['KeySchema'])
             pass

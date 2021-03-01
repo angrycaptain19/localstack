@@ -69,9 +69,11 @@ def merge_parameters(func1, func2):
 
 def params_dict_to_list(param_name, key_attr_name='Key', value_attr_name='Value', wrapper=None):
     def do_replace(params, **kwargs):
-        result = []
-        for key, value in params.get(param_name, {}).items():
-            result.append({key_attr_name: key, value_attr_name: value})
+        result = [
+            {key_attr_name: key, value_attr_name: value}
+            for key, value in params.get(param_name, {}).items()
+        ]
+
         if wrapper:
             result = {wrapper: result}
         return result

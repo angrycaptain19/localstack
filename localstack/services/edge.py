@@ -133,18 +133,24 @@ def do_forward_request_inmem(api, method, path, data, headers, port=None):
     client_address = LOCALHOST_IP
     server_address = headers.get('host') or LOCALHOST
     forward_url = 'http://%s:%s' % (config.HOSTNAME, backend_port)
-    response = modify_and_forward(method=method, path=path, data_bytes=data, headers=headers,
-        forward_base_url=forward_url, listeners=[listener], request_handler=None,
-        client_address=client_address, server_address=server_address)
-    return response
+    return modify_and_forward(
+        method=method,
+        path=path,
+        data_bytes=data,
+        headers=headers,
+        forward_base_url=forward_url,
+        listeners=[listener],
+        request_handler=None,
+        client_address=client_address,
+        server_address=server_address,
+    )
 
 
 def do_forward_request_network(port, method, path, data, headers):
     connect_host = '%s:%s' % (config.HOSTNAME, port)
     url = '%s://%s%s' % (get_service_protocol(), connect_host, path)
     function = getattr(requests, method.lower())
-    response = function(url, data=data, headers=headers, verify=False, stream=True)
-    return response
+    return function(url, data=data, headers=headers, verify=False, stream=True)
 
 
 def get_api_from_headers(headers, method=None, path=None, data=None):
@@ -206,9 +212,10 @@ def get_api_from_headers(headers, method=None, path=None, data=None):
 def is_s3_form_data(data_bytes):
     if(to_bytes('key=') in data_bytes):
         return True
-    if(to_bytes('Content-Disposition: form-data') in data_bytes and to_bytes('name="key"') in data_bytes):
-        return True
-    return False
+    return (
+        to_bytes('Content-Disposition: form-data') in data_bytes
+        and to_bytes('name="key"') in data_bytes
+    )
 
 
 def serve_health_endpoint(method, path, data):
@@ -252,8 +259,11 @@ def terminate_all_processes_in_docker():
 def serve_resource_graph(data):
     data = json.loads(to_str(data or '{}'))
     env = Environment.from_string(data.get('awsEnvironment'))
-    graph = dashboard_infra.get_graph(name_filter=data.get('nameFilter') or '.*', env=env, region=data.get('awsRegion'))
-    return graph
+    return dashboard_infra.get_graph(
+        name_filter=data.get('nameFilter') or '.*',
+        env=env,
+        region=data.get('awsRegion'),
+    )
 
 
 def get_api_from_custom_rules(method, path, data, headers):

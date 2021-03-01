@@ -171,7 +171,7 @@ class S3ListenerTest (unittest.TestCase):
 
         # test all available hosts with the bucket_name in the path
         bucket_path = '/{}/{}'.format(bucket_name, s3_key)
-        for host in hosts:
+        for _ in hosts:
             headers = CaseInsensitiveDict({'Host': hosts[0]})
             returned_bucket_name = s3_listener.get_bucket_name(bucket_path, headers)
             self.assertEqual(returned_bucket_name, bucket_name, 'Should match when bucket_name is in path')

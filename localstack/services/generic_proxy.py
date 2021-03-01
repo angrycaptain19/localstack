@@ -159,13 +159,14 @@ class GenericProxyHandler(BaseHTTPRequestHandler):
         # Required fix for Python 2 (otherwise S3 uploads are hanging), based on the Python 3 code:
         # https://sourcecodebrowser.com/python3.2/3.2.3/http_2server_8py_source.html#l00332
         expect = self.headers.get('Expect', '')
-        if (expect.lower() == '100-continue' and
-                self.protocol_version >= 'HTTP/1.1' and
-                self.request_version >= 'HTTP/1.1'):
-            if self.request_version != 'HTTP/0.9':
-                self.wfile.write(('%s %d %s\r\n' %
-                    (self.protocol_version, 100, 'Continue')).encode('latin1', 'strict'))
-                self.end_headers()
+        if (
+            expect.lower() == '100-continue'
+            and self.protocol_version >= 'HTTP/1.1'
+            and self.request_version >= 'HTTP/1.1'
+        ) and self.request_version != 'HTTP/0.9':
+            self.wfile.write(('%s %d %s\r\n' %
+                (self.protocol_version, 100, 'Continue')).encode('latin1', 'strict'))
+            self.end_headers()
         return result
 
     def do_GET(self):
@@ -328,7 +329,10 @@ def append_cors_headers(response=None):
     if 'Access-Control-Allow-Headers' not in headers:
         requested_headers = headers.get('Access-Control-Request-Headers', '')
         requested_headers = re.split(r'[,\s]+', requested_headers) + CORS_ALLOWED_HEADERS
-        headers['Access-Control-Allow-Headers'] = ','.join([h for h in requested_headers if h])
+        headers['Access-Control-Allow-Headers'] = ','.join(
+            h for h in requested_headers if h
+        )
+
     if 'Access-Control-Expose-Headers' not in headers:
         headers['Access-Control-Expose-Headers'] = ','.join(CORS_EXPOSE_HEADERS)
 
@@ -589,9 +593,8 @@ def start_proxy_server(port, forward_url=None, use_ssl=None, update_listener=Non
 
 
 def start_proxy_server_http2(port, forward_url=None, use_ssl=None, update_listener=None, quiet=False, params={}):
-    proxy_thread = run_proxy_server_http2(port=port, use_ssl=use_ssl,
+    return run_proxy_server_http2(port=port, use_ssl=use_ssl,
         listener=update_listener, forward_url=forward_url, asynchronous=True)
-    return proxy_thread
 
 
 def run_proxy_server_http2(port, listener=None, forward_url=None, asynchronous=True, use_ssl=None):
@@ -604,11 +607,17 @@ def run_proxy_server_http2(port, listener=None, forward_url=None, asynchronous=T
         request_handler = Mock()
         request_handler.proxy = Mock()
         request_handler.proxy.port = port
-        response = modify_and_forward(method=method, path=path_with_params, data_bytes=data, headers=headers,
-            forward_base_url=forward_url, listeners=[listener], request_handler=None,
-            client_address=request.remote_addr, server_address=parsed_url.netloc)
-
-        return response
+        return modify_and_forward(
+            method=method,
+            path=path_with_params,
+            data_bytes=data,
+            headers=headers,
+            forward_base_url=forward_url,
+            listeners=[listener],
+            request_handler=None,
+            client_address=request.remote_addr,
+            server_address=parsed_url.netloc,
+        )
 
     ssl_creds = (None, None)
     if use_ssl:
