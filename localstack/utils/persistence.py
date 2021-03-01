@@ -152,8 +152,7 @@ def replay_command(command):
     except UnicodeEncodeError:
         if hasattr(data, 'encode'):
             data = data.encode('utf-8')
-    response = function(full_url, data=data, headers=headers, verify=False)
-    return response
+    return function(full_url, data=data, headers=headers, verify=False)
 
 
 def replay(api):

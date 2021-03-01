@@ -68,10 +68,9 @@ def get_elasticsearch_install_dir(version=None):
     version = get_elasticsearch_install_version(version)
     if version == ELASTICSEARCH_DEFAULT_VERSION and not os.path.exists(MARKER_FILE_LIGHT_VERSION):
         # install the default version into a subfolder of the code base
-        install_dir = os.path.join(INSTALL_DIR_INFRA, 'elasticsearch')
+        return os.path.join(INSTALL_DIR_INFRA, 'elasticsearch')
     else:
-        install_dir = os.path.join(config.TMP_FOLDER, 'elasticsearch', version)
-    return install_dir
+        return os.path.join(config.TMP_FOLDER, 'elasticsearch', version)
 
 
 def install_elasticsearch(version=None):
@@ -286,7 +285,7 @@ def download_and_extract_with_retry(archive_url, tmp_archive, target_dir):
         _, ext = os.path.splitext(tmp_archive)
         if ext == '.zip':
             unzip(tmp_archive, target_dir)
-        elif ext == '.gz' or ext == '.bz2':
+        elif ext in ['.gz', '.bz2']:
             untar(tmp_archive, target_dir)
         else:
             raise Exception('Unsupported archive format: %s' % ext)
@@ -300,16 +299,14 @@ def download_and_extract_with_retry(archive_url, tmp_archive, target_dir):
         download_and_extract()
 
 
-if __name__ == '__main__':
-
-    if len(sys.argv) > 1:
-        os.environ['LOCALSTACK_API_KEY'] = os.environ.get('LOCALSTACK_API_KEY') or 'test'
-        if sys.argv[1] == 'libs':
-            print('Initializing installation.')
-            logging.basicConfig(level=logging.INFO)
-            logging.getLogger('requests').setLevel(logging.WARNING)
-            install_all_components()
-        if sys.argv[1] in ('libs', 'testlibs'):
-            # Install additional libraries for testing
-            install_amazon_kinesis_client_libs()
-        print('Done.')
+if __name__ == '__main__' and len(sys.argv) > 1:
+    os.environ['LOCALSTACK_API_KEY'] = os.environ.get('LOCALSTACK_API_KEY') or 'test'
+    if sys.argv[1] == 'libs':
+        print('Initializing installation.')
+        logging.basicConfig(level=logging.INFO)
+        logging.getLogger('requests').setLevel(logging.WARNING)
+        install_all_components()
+    if sys.argv[1] in ('libs', 'testlibs'):
+        # Install additional libraries for testing
+        install_amazon_kinesis_client_libs()
+    print('Done.')

@@ -64,7 +64,7 @@ class TestKinesis(unittest.TestCase):
 
         # put records
         num_records = 5
-        for i in range(num_records):
+        for _ in range(num_records):
             client.put_records(StreamName=stream_name, Records=[{'Data': 'SGVsbG8gd29ybGQ=', 'PartitionKey': '1'}])
 
         # assert results

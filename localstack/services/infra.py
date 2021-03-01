@@ -164,8 +164,7 @@ def patch_instance_tracker_meta():
     moto_core.models.InstanceTrackerMeta.__new__ = new_intance
 
     def new_basemodel(cls, *args, **kwargs):
-        instance = super(moto_core.models.BaseModel, cls).__new__(cls)
-        return instance
+        return super(moto_core.models.BaseModel, cls).__new__(cls)
 
     moto_core.models.BaseModel.__new__ = new_basemodel
 
@@ -210,8 +209,13 @@ def get_services_status():
 
 def get_service_status(service, port=None):
     port = port or config.parse_service_ports().get(service)
-    status = 'disabled' if (port or 0) <= 0 else 'running' if is_port_open(port) else 'stopped'
-    return status
+    return (
+        'disabled'
+        if (port or 0) <= 0
+        else 'running'
+        if is_port_open(port)
+        else 'stopped'
+    )
 
 
 def get_multiserver_or_free_service_port():
@@ -261,9 +265,14 @@ def start_proxy_for_service(service_name, port, backend_port, update_listener, q
 
 def start_proxy(port, backend_url, update_listener=None, quiet=False, params={}, use_ssl=None):
     use_ssl = config.USE_SSL if use_ssl is None else use_ssl
-    proxy_thread = start_proxy_server(port=port, forward_url=backend_url,
-        use_ssl=use_ssl, update_listener=update_listener, quiet=quiet, params=params)
-    return proxy_thread
+    return start_proxy_server(
+        port=port,
+        forward_url=backend_url,
+        use_ssl=use_ssl,
+        update_listener=update_listener,
+        quiet=quiet,
+        params=params,
+    )
 
 
 def start_moto_server(key, port, name=None, backend_port=None, asynchronous=False, update_listener=None):
@@ -296,8 +305,7 @@ def start_local_api(name, port, api, method, asynchronous=False):
         port = get_free_tcp_port()
         PROXY_LISTENERS[api] = (api, port, None)
     if asynchronous:
-        thread = start_thread(method, port, quiet=True)
-        return thread
+        return start_thread(method, port, quiet=True)
     else:
         method(port)
 

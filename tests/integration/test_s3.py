@@ -687,9 +687,9 @@ class TestS3(unittest.TestCase):
         client = self._get_test_client()
         client.create_bucket(Bucket=bucket_name)
 
+        # put object
+        object_key = 'key-by-hostname'
         for encoding in None, 'gzip':
-            # put object
-            object_key = 'key-by-hostname'
             client.put_object(Bucket=bucket_name,
                 Key=object_key,
                 Body='something',
@@ -1682,10 +1682,9 @@ class TestS3(unittest.TestCase):
     def generate_large_file(size):
         # https://stackoverflow.com/questions/8816059/create-file-of-particular-size-in-python
         filename = 'large_file_%s' % uuid.uuid4()
-        f = open(filename, 'wb')
-        f.seek(size - 1)
-        f.write(b'\0')
-        f.close()
+        with open(filename, 'wb') as f:
+            f.seek(size - 1)
+            f.write(b'\0')
         return open(filename, 'r')
 
     def _create_test_queue(self):

@@ -15,9 +15,8 @@ def apply_patches():
         def fix_keys(o, **kwargs):
             if isinstance(o, dict):
                 for k, v in o.items():
-                    if k in list_parent_tags:
-                        if isinstance(v, dict) and 'item' in v:
-                            v[k[:-1]] = v.pop('item')
+                    if k in list_parent_tags and isinstance(v, dict) and 'item' in v:
+                        v[k[:-1]] = v.pop('item')
             return o
 
         result = itemize_orig(data, *args, **kwargs)

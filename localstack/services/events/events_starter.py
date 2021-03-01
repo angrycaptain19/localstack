@@ -209,12 +209,15 @@ def start_events(port=None, asynchronous=None, update_listener=None):
 
 
 def get_two_lists_intersection(lst1, lst2):
-    lst3 = [value for value in lst1 if value in lst2]
-    return lst3
+    return [value for value in lst1 if value in lst2]
 
 
 def identify_content_base_parameter_in_pattern(parameters):
-    if any([list(param.keys())[0] in CONTENT_BASE_FILTER_KEYWORDS for param in parameters if isinstance(param, dict)]):
+    if any(
+        list(param.keys())[0] in CONTENT_BASE_FILTER_KEYWORDS
+        for param in parameters
+        if isinstance(param, dict)
+    ):
         return True
 
 
@@ -230,9 +233,12 @@ def filter_event_with_content_base_parameter(pattern_value, event_value):
                 if re.match(r'^{}'.format(element_value), event_value):
                     return True
             elif element_key.lower() == 'exists':
-                if element_value and event_value:
-                    return True
-                elif not element_value and not event_value:
+                if (
+                    element_value
+                    and event_value
+                    or not element_value
+                    and not event_value
+                ):
                     return True
             elif element_key.lower() == 'cidr':
                 ips = [str(ip) for ip in ipaddress.IPv4Network(element_value)]

@@ -348,10 +348,7 @@ def start_kcl_client_process(stream_name, listener_script, log_file=None, env=No
 
 def generate_processor_script(events_file, log_file=None):
     script_file = os.path.join(tempfile.gettempdir(), 'kclipy.%s.processor.py' % short_uid())
-    if log_file:
-        log_file = "'%s'" % log_file
-    else:
-        log_file = 'None'
+    log_file = "'%s'" % log_file if log_file else 'None'
     content = """#!/usr/bin/env python
 import os, sys, glob, json, socket, time, logging, subprocess, tempfile
 logging.basicConfig(level=logging.INFO)

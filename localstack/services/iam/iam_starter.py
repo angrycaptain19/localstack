@@ -124,8 +124,12 @@ def apply_patches():
         user = moto_iam_backend.users[user_name]
         tags = moto_iam_backend.tagger.list_tags_for_resource(user.arn)
         if tags and '<Tags>' not in result:
-            tags_str = ''.join([
-                '<member><Key>%s</Key><Value>%s</Value></member>' % (t['Key'], t['Value']) for t in tags['Tags']])
+            tags_str = ''.join(
+                '<member><Key>%s</Key><Value>%s</Value></member>'
+                % (t['Key'], t['Value'])
+                for t in tags['Tags']
+            )
+
             result = result.replace('</Arn>', '</Arn><Tags>%s</Tags>' % tags_str)
         return result
 
@@ -213,10 +217,7 @@ def apply_patches():
 
         prefix = self._get_param('PathPrefix')
         if prefix:
-            filtered_roles = []
-            for role in roles:
-                if role.path.startswith(prefix):
-                    filtered_roles.append(role)
+            filtered_roles = [role for role in roles if role.path.startswith(prefix)]
             items = filtered_roles
 
         template = self.response_template(LIST_ROLES_TEMPLATE)

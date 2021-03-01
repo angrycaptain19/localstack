@@ -231,8 +231,7 @@ class LambdaExecutor(object):
             raise InvocationException('Lambda process returned error status code: %s. Result: %s. Output:\n%s' %
                 (return_code, result, log_output), log_output, result)
 
-        invocation_result = InvocationResult(result, log_output=log_output)
-        return invocation_result
+        return InvocationResult(result, log_output=log_output)
 
 
 class ContainerInfo:
@@ -366,7 +365,10 @@ class LambdaExecutorReuseContainers(LambdaExecutorContainers):
         # Note: currently "docker exec" does not support --env-file, i.e., environment variables can only be
         # passed directly on the command line, using "-e" below. TODO: Update this code once --env-file is
         # available for docker exec, to better support very large Lambda events (very long environment values)
-        exec_env_vars = ' '.join(['-e {}="${}"'.format(k, k) for (k, v) in env_vars.items()])
+        exec_env_vars = ' '.join(
+            '-e {}="${}"'.format(k, k) for (k, v) in env_vars.items()
+        )
+
 
         if not command:
             command = '%s %s' % (container_info.entry_point, handler)
@@ -435,7 +437,10 @@ class LambdaExecutorReuseContainers(LambdaExecutorContainers):
                 # Make sure the container does not exist in any form/state.
                 self.destroy_docker_container(func_arn)
 
-                env_vars_str = ' '.join(['-e {}={}'.format(k, cmd_quote(v)) for (k, v) in env_vars])
+                env_vars_str = ' '.join(
+                    '-e {}={}'.format(k, cmd_quote(v)) for (k, v) in env_vars
+                )
+
 
                 network = config.LAMBDA_DOCKER_NETWORK
                 network_str = '--network="%s"' % network if network else ''
@@ -547,12 +552,7 @@ class LambdaExecutorReuseContainers(LambdaExecutorContainers):
             LOG.debug(cmd)
             cmd_result = run(cmd, asynchronous=False, stderr=subprocess.PIPE, outfile=subprocess.PIPE).strip()
 
-            if len(cmd_result) > 0:
-                container_names = cmd_result.split('\n')
-            else:
-                container_names = []
-
-            return container_names
+            return cmd_result.split('\n') if len(cmd_result) > 0 else []
 
     def destroy_existing_docker_containers(self):
         """
@@ -626,9 +626,7 @@ class LambdaExecutorReuseContainers(LambdaExecutorContainers):
             LOG.debug(cmd)
             cmd_result = run(cmd, asynchronous=False, stderr=subprocess.PIPE, outfile=subprocess.PIPE)
 
-            container_network = cmd_result.strip()
-
-            return container_network
+            return cmd_result.strip()
 
     def idle_container_destroyer(self):
         """
@@ -700,7 +698,10 @@ class LambdaExecutorSeparateContainers(LambdaExecutorContainers):
         dns = config.LAMBDA_DOCKER_DNS
         dns_str = '--dns="%s"' % dns if dns else ''
 
-        env_vars_string = ' '.join(['-e {}="${}"'.format(k, k) for (k, v) in env_vars.items()])
+        env_vars_string = ' '.join(
+            '-e {}="${}"'.format(k, k) for (k, v) in env_vars.items()
+        )
+
         debug_docker_java_port = '-p {p}:{p}'.format(p=Util.debug_java_port) if Util.debug_java_port else ''
         docker_cmd = self._docker_cmd()
         docker_image = Util.docker_image_for_lambda(func_details)
@@ -708,7 +709,7 @@ class LambdaExecutorSeparateContainers(LambdaExecutorContainers):
 
         if config.LAMBDA_REMOTE_DOCKER:
             cp_cmd = '%s cp "%s/." "$CONTAINER_ID:/var/task";' % (docker_cmd, lambda_cwd) if lambda_cwd else ''
-            cmd = (
+            return (
                 'CONTAINER_ID="$(%s create -i'
                 ' %s'  # entrypoint
                 ' %s'  # debug_docker_java_port
@@ -729,7 +730,7 @@ class LambdaExecutorSeparateContainers(LambdaExecutorContainers):
             mount_flag = ''
             if lambda_cwd:
                 mount_flag = '-v "%s":/var/task' % Util.get_host_path_for_path_in_docker(lambda_cwd)
-            cmd = (
+            return (
                 '%s run -i'
                 ' %s'
                 ' %s'  # code mount
@@ -740,7 +741,6 @@ class LambdaExecutorSeparateContainers(LambdaExecutorContainers):
                 ' %s %s'
             ) % (docker_cmd, entrypoint, mount_flag, env_vars_string,
                  network_str, dns_str, rm_flag, docker_image, command)
-        return cmd
 
 
 class LambdaExecutorLocal(LambdaExecutor):
@@ -808,7 +808,7 @@ class LambdaExecutorLocal(LambdaExecutor):
 
     def execute_java_lambda(self, event, context, main_file, func_details=None):
         handler = func_details.handler
-        opts = config.LAMBDA_JAVA_OPTS if config.LAMBDA_JAVA_OPTS else ''
+        opts = config.LAMBDA_JAVA_OPTS or ''
         event_file = EVENT_FILE_PATTERN.replace('*', short_uid())
         save_file(event_file, json.dumps(json_safe(event)))
         TMP_FILES.append(event_file)
@@ -816,8 +816,7 @@ class LambdaExecutorLocal(LambdaExecutor):
         classpath = '%s:%s:%s' % (main_file, Util.get_java_classpath(main_file), LAMBDA_EXECUTOR_JAR)
         cmd = 'java %s -cp %s %s %s %s' % (opts, classpath, LAMBDA_EXECUTOR_CLASS, class_name, event_file)
         LOG.warning(cmd)
-        result = self.run_lambda_executor(cmd, func_details=func_details)
-        return result
+        return self.run_lambda_executor(cmd, func_details=func_details)
 
 
 class Util:
@@ -892,8 +891,7 @@ class Util:
         entries.append(os.path.relpath(archive, base_dir))
         entries.append('*.jar')
         entries.append('java/lib/*.jar')
-        result = ':'.join(entries)
-        return result
+        return ':'.join(entries)
 
 
 # --------------

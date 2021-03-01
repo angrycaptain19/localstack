@@ -18,8 +18,7 @@ def get_kcl_dir():
 
 
 def get_kcl_jar_path():
-    jars = ':'.join(glob(os.path.join(get_kcl_dir(), 'jars', '*jar')))
-    return jars
+    return ':'.join(glob(os.path.join(get_kcl_dir(), 'jars', '*jar')))
 
 
 def get_kcl_classpath(properties=None, paths=[]):
@@ -53,7 +52,7 @@ def get_kcl_classpath(properties=None, paths=[]):
     paths.insert(0, os.path.realpath(os.path.join(dir_name, '..', '..',
             'infra', 'amazon-kinesis-client', 'aws-java-sdk-sts.jar')))
     paths.insert(0, os.path.realpath(os.path.join(dir_name, 'java')))
-    return ':'.join([p for p in paths if p != ''])
+    return ':'.join(p for p in paths if p != '')
 
 
 def get_kcl_app_command(java, multi_lang_daemon_class, properties, paths=[]):

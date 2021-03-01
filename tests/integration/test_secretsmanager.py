@@ -54,7 +54,7 @@ class SecretsManagerTest(unittest.TestCase):
             Name=secret_name, SecretString='my_secret', Description='testing creation of secrets')
 
         # call list_secrets multiple times
-        for i in range(3):
+        for _ in range(3):
             rs = self.secretsmanager_client.list_secrets()
             secrets = [
                 secret for secret in rs['SecretList'] if secret['Name'] == secret_name
@@ -95,7 +95,9 @@ class SecretsManagerTest(unittest.TestCase):
         )
 
         self.assertEqual(120, len(random_password['RandomPassword']))
-        self.assertTrue(all([c not in 'xyzDje@?!.' for c in random_password['RandomPassword']]))
+        self.assertTrue(
+            all(c not in 'xyzDje@?!.' for c in random_password['RandomPassword'])
+        )
 
     def test_resource_policy(self):
         secret_name = 's-%s' % short_uid()

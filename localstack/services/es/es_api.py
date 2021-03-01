@@ -291,9 +291,7 @@ def delete_domain(domain_name):
 
 @app.route('%s/es/versions' % API_PREFIX, methods=['GET'])
 def list_es_versions():
-    result = []
-    for key in ELASTICSEARCH_URLS.keys():
-        result.append(key)
+    result = [key for key in ELASTICSEARCH_URLS.keys()]
     return jsonify({'ElasticsearchVersions': result})
 
 

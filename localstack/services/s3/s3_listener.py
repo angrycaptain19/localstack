@@ -330,14 +330,12 @@ def convert_origins_into_list(allowed_origins):
 
 
 def get_origin_host(headers):
-    origin = headers.get('Origin') or get_forwarded_for_host(headers)
-    return origin
+    return headers.get('Origin') or get_forwarded_for_host(headers)
 
 
 def get_forwarded_for_host(headers):
     x_forwarded_header = re.split(r',\s?', headers.get('X-Forwarded-For', ''))
-    host = x_forwarded_header[len(x_forwarded_header) - 1]
-    return host
+    return x_forwarded_header[len(x_forwarded_header) - 1]
 
 
 def append_cors_headers(bucket_name, request_method, request_headers, response):
@@ -415,10 +413,9 @@ def is_object_expired(path):
     object_expiry = get_object_expiry(path)
     if not object_expiry:
         return False
-    if dateutil.parser.parse(object_expiry) > \
-            datetime.datetime.now(timezone(dateutil.parser.parse(object_expiry).tzname())):
-        return False
-    return True
+    return dateutil.parser.parse(object_expiry) <= datetime.datetime.now(
+        timezone(dateutil.parser.parse(object_expiry).tzname())
+    )
 
 
 def set_object_expiry(path, headers):
@@ -430,9 +427,7 @@ def get_object_expiry(path):
 
 
 def is_url_already_expired(expiry_timestamp):
-    if int(expiry_timestamp) < int(now_utc()):
-        return True
-    return False
+    return int(expiry_timestamp) < int(now_utc())
 
 
 def add_response_metadata_headers(response):
@@ -440,9 +435,10 @@ def add_response_metadata_headers(response):
         response.headers['content-language'] = 'en-US'
     if response.headers.get('cache-control') is None:
         response.headers['cache-control'] = 'no-cache'
-    if response.headers.get('content-encoding') is None:
-        if not uses_chunked_encoding(response):
-            response.headers['content-encoding'] = 'identity'
+    if response.headers.get(
+        'content-encoding'
+    ) is None and not uses_chunked_encoding(response):
+        response.headers['content-encoding'] = 'identity'
 
 
 def append_last_modified_headers(response, content=None):
@@ -488,9 +484,11 @@ def append_list_objects_marker(method, path, data, response):
 
 def append_metadata_headers(method, query_map, headers):
     for key, value in query_map.items():
-        if key.lower().startswith(OBJECT_METADATA_KEY_PREFIX):
-            if headers.get(key) is None:
-                headers[key] = value[0]
+        if (
+            key.lower().startswith(OBJECT_METADATA_KEY_PREFIX)
+            and headers.get(key) is None
+        ):
+            headers[key] = value[0]
 
 
 def fix_location_constraint(response):
@@ -526,7 +524,11 @@ def fix_range_content_type(bucket_name, path, headers, response):
 def fix_delete_objects_response(bucket_name, method, parsed_path, data, headers, response):
     # Deleting non-existing keys should not result in errors.
     # Fixes https://github.com/localstack/localstack/issues/1893
-    if not (method == 'POST' and parsed_path.query == 'delete' and '<Delete' in to_str(data or '')):
+    if (
+        method != 'POST'
+        or parsed_path.query != 'delete'
+        or '<Delete' not in to_str(data or '')
+    ):
         return
     content = to_str(response._content)
     if '<Error>' not in content:
@@ -871,11 +873,9 @@ def expand_redirect_url(starting_url, key, bucket):
     query = collections.OrderedDict(urlparse.parse_qsl(parsed.query))
     query.update([('key', key), ('bucket', bucket)])
 
-    redirect_url = urlparse.urlunparse((
+    return urlparse.urlunparse((
         parsed.scheme, parsed.netloc, parsed.path,
         parsed.params, urlparse.urlencode(query), None))
-
-    return redirect_url
 
 
 def is_bucket_specified_in_domain_name(path, headers):
@@ -1082,7 +1082,7 @@ class ProxyListenerS3(PersistingProxyListener):
         path = path.replace('#', '%23')  # support key names containing hashes (e.g., required by Amplify)
 
         # Detecting pre-sign url and checking signature
-        if any([p in query_params for p in PRESIGN_QUERY_PARAMS]):
+        if any(p in query_params for p in PRESIGN_QUERY_PARAMS):
             response = authenticate_presign_url(method=method, path=path, data=data, headers=headers)
             if response is not None:
                 return response
@@ -1162,9 +1162,12 @@ class ProxyListenerS3(PersistingProxyListener):
             return response
 
         # if the Expires key in the url is already expired then return error
-        if method == 'GET' and 'Expires' in query_map:
-            if is_url_already_expired(query_map.get('Expires')[0]):
-                return token_expired_error(path, headers.get('x-amz-request-id'), 400)
+        if (
+            method == 'GET'
+            and 'Expires' in query_map
+            and is_url_already_expired(query_map.get('Expires')[0])
+        ):
+            return token_expired_error(path, headers.get('x-amz-request-id'), 400)
 
         # If multipart POST with policy in the params, return error if the policy has expired
         if method == 'POST':
@@ -1428,7 +1431,7 @@ def authenticate_presign_url(method, path, headers, data=None):
     query_params = parse_qs(parsed.query)
 
     # Checking required parameters are present in url or not
-    if not all([p in query_params for p in PRESIGN_QUERY_PARAMS]):
+    if any(p not in query_params for p in PRESIGN_QUERY_PARAMS):
         return requests_error_response_xml_signature_calculation(
             code=403,
             message='Query-string authentication requires the Signature, Expires and AWSAccessKeyId parameters',
@@ -1447,9 +1450,10 @@ def authenticate_presign_url(method, path, headers, data=None):
     presign_params_lower = [p.lower() for p in PRESIGN_QUERY_PARAMS]
     if len(query_params) > 2:
         for key in query_params:
-            if key.lower() not in presign_params_lower:
-                if key.lower() not in (header[0].lower() for header in headers):
-                    sign_headers.append((key, query_params[key][0]))
+            if key.lower() not in presign_params_lower and key.lower() not in (
+                header[0].lower() for header in headers
+            ):
+                sign_headers.append((key, query_params[key][0]))
 
     # Preparnig dictionary of request to build AWSRequest's object of the botocore
     request_url = url.split('?')[0]

@@ -80,7 +80,7 @@ def validate_template(req_data):
     """
     template_body = get_template_body(req_data)
     valid_template = json.loads(template_to_json(template_body))
-    parameters = ''.join([
+    parameters = ''.join(
         """
         <member>
             <ParameterKey>{pk}</ParameterKey>
@@ -92,16 +92,15 @@ def validate_template(req_data):
             pk=k,
             dv=v.get('Default', ''),
             echo=False,
-            desc=v.get('Description', '')
-
+            desc=v.get('Description', ''),
         )
         for k, v in valid_template.get('Parameters', {}).items()
-    ])
+    )
 
-    resp = response_content.format(
+
+    return response_content.format(
         parameters=parameters, description=valid_template.get('Description', '')
     )
-    return resp
 
 
 def get_template_body(req_data):
@@ -162,5 +161,4 @@ def convert_s3_to_local_url(url):
     bucket_name, _, key = path.lstrip('/').replace('//', '/').partition('/')
     # note: make sure to normalize the bucket name here!
     bucket_name = s3_listener.normalize_bucket_name(bucket_name)
-    local_url = '%s/%s/%s' % (config.TEST_S3_URL, bucket_name, key)
-    return local_url
+    return '%s/%s/%s' % (config.TEST_S3_URL, bucket_name, key)

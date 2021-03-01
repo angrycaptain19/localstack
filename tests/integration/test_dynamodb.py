@@ -53,7 +53,7 @@ class TestDynamoDB(unittest.TestCase):
         for k, item in items.items():
             table.put_item(Item=item)
 
-        for item_id in items.keys():
+        for item_id in items:
             item = table.get_item(Key={PARTITION_KEY: item_id})['Item']
 
             # need to fix up the JSON and convert str to unicode for Python 2
@@ -70,7 +70,7 @@ class TestDynamoDB(unittest.TestCase):
 
         # Create a large amount of items
         num_items = 20
-        for i in range(0, num_items):
+        for i in range(num_items):
             item = {PARTITION_KEY: 'id%s' % i, 'data1': 'foobar123 ' * 1000}
             table.put_item(Item=item)
 

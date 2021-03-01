@@ -207,9 +207,6 @@ class TestEc2Integrations(unittest.TestCase):
 
         resp1 = ec2.run_instances(**kwargs)
 
-        instances = []
-        for instance in resp1['Instances']:
-            instances.append(instance.get('InstanceId'))
-
+        instances = [instance.get('InstanceId') for instance in resp1['Instances']]
         resp = ec2.terminate_instances(InstanceIds=instances)
         self.assertEqual(instances[0], resp['TerminatingInstances'][0]['InstanceId'])

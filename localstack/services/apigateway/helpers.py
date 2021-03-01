@@ -104,8 +104,7 @@ def get_authorizer_id_from_path(path):
 def _find_authorizer(api_id, authorizer_id):
     region_details = APIGatewayRegion.get()
     auth_list = region_details.authorizers.get(api_id) or []
-    authorizer = ([a for a in auth_list if a['id'] == authorizer_id] or [None])[0]
-    return authorizer
+    return ([a for a in auth_list if a['id'] == authorizer_id] or [None])[0]
 
 
 def normalize_authorizer(data):
@@ -307,8 +306,7 @@ def get_validator_id_from_path(path):
 def _find_validator(api_id, validator_id):
     region_details = APIGatewayRegion.get()
     auth_list = region_details.validators.get(api_id) or []
-    validator = ([a for a in auth_list if a['id'] == validator_id] or [None])[0]
-    return validator
+    return ([a for a in auth_list if a['id'] == validator_id] or [None])[0]
 
 
 def get_validators(path):
@@ -521,12 +519,14 @@ def path_matches_pattern(path, api_path):
     api_paths = api_path.split('/')
     paths = path.split('/')
     reg_check = re.compile(r'\{(.*)\}')
-    results = []
     if len(api_paths) != len(paths):
         return False
-    for indx, part in enumerate(api_paths):
-        if reg_check.match(part) is None and part:
-            results.append(part == paths[indx])
+    results = [
+        part == paths[indx]
+        for indx, part in enumerate(api_paths)
+        if reg_check.match(part) is None and part
+    ]
+
     return len(results) > 0 and all(results)
 
 

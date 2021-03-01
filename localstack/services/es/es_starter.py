@@ -91,13 +91,12 @@ def check_elasticsearch(expect_shutdown=False, print_error=True):
         req = requests.get(endpoint + '/_cluster/health')
         es_status = json.loads(req.text)
         es_status = es_status['status']
-        return es_status == 'green' or es_status == 'yellow'
+        return es_status in ['green', 'yellow']
     except ValueError as e:
         if print_error:
             LOG.error(
                 'Elasticsearch health check to endpoint %s failed (retrying...): %s %s' % (
                     endpoint, e, traceback.format_exc()))
-        pass
 
 
 def start_elasticsearch_service(port=None, asynchronous=False):

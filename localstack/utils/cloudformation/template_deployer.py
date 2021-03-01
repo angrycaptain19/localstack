@@ -57,11 +57,11 @@ def str_or_none(o):
 
 def params_select_attributes(*attrs):
     def do_select(params, **kwargs):
-        result = {}
-        for attr in attrs:
-            if params.get(attr) is not None:
-                result[attr] = str_or_none(params.get(attr))
-        return result
+        return {
+            attr: str_or_none(params.get(attr))
+            for attr in attrs
+            if params.get(attr) is not None
+        }
     return do_select
 
 
@@ -705,8 +705,10 @@ def retrieve_resource_details(resource_id, resource_status, resources, stack_nam
         resource_class = RESOURCE_MODELS.get(canonical_type)
         if resource_class:
             instance = resource_class(resource)
-            state = instance.fetch_and_update_state(stack_name=stack_name, resources=resources)
-            return state
+            return instance.fetch_and_update_state(
+                stack_name=stack_name, resources=resources
+            )
+
 
         # special case for stack parameters
         if resource_type == 'Parameter':
@@ -779,14 +781,13 @@ def extract_resource_attribute(resource_type, resource_state, attribute, resourc
             return result
     elif resource_type == 'Lambda::Function':
         func_configs = resource_state.get('Configuration') or {}
-        if is_ref_attr_or_arn:
-            func_arn = func_configs.get('FunctionArn')
-            if func_arn:
-                return resolve_refs_recursively(stack_name, func_arn, resources)
-            func_name = resolve_refs_recursively(stack_name, func_configs.get('FunctionName'), resources)
-            return aws_stack.lambda_function_arn(func_name)
-        else:
+        if not is_ref_attr_or_arn:
             return func_configs.get(attribute)
+        func_arn = func_configs.get('FunctionArn')
+        if func_arn:
+            return resolve_refs_recursively(stack_name, func_arn, resources)
+        func_name = resolve_refs_recursively(stack_name, func_configs.get('FunctionName'), resources)
+        return aws_stack.lambda_function_arn(func_name)
     elif resource_type == 'Lambda::Version':
         if resource_state.get('Version'):
             return '%s:%s' % (resource_state.get('FunctionArn'), resource_state.get('Version').split(':')[-1])
@@ -902,9 +903,10 @@ def resolve_ref(stack_name, ref, resources, attribute):
         return determine_resource_physical_id(resource_id=ref,
             resources=resources, attribute=attribute, stack_name=stack_name)
 
-    if resources.get(ref):
-        if isinstance(resources[ref].get(attribute), (str, int, float, bool, dict)):
-            return resources[ref][attribute]
+    if resources.get(ref) and isinstance(
+        resources[ref].get(attribute), (str, int, float, bool, dict)
+    ):
+        return resources[ref][attribute]
 
     # fetch resource details
     resource_new = retrieve_resource_details(ref, {}, resources, stack_name)
@@ -1019,11 +1021,7 @@ def resolve_refs_recursively(stack_name, value, resources):
 
         if stripped_fn_lower == 'getazs':
             region = resolve_refs_recursively(stack_name, value['Fn::GetAZs'], resources) or aws_stack.get_region()
-            azs = []
-            for az in ('a', 'b', 'c', 'd'):
-                azs.append('%s%s' % (region, az))
-
-            return azs
+            return ['%s%s' % (region, az) for az in ('a', 'b', 'c', 'd')]
 
         if stripped_fn_lower == 'base64':
             value_to_encode = value[keys_list[0]]
@@ -1199,8 +1197,9 @@ def execute_resource_action_fallback(action_name, resource_id, resources, stack_
     LOG.info('%s - using fallback mechanism' % msg)
     if action_name == ACTION_CREATE:
         resource_name = get_resource_name(resource) or resource_id
-        result = clazz.create_from_cloudformation_json(resource_name, resource, aws_stack.get_region())
-        return result
+        return clazz.create_from_cloudformation_json(
+            resource_name, resource, aws_stack.get_region()
+        )
 
 
 def execute_resource_action(resource_id, resources, stack_name, action_name):
@@ -1570,9 +1569,8 @@ def update_resource_details(stack, resource_id, details, action=None):
     if resource_type == 'KMS::Key':
         resource['PhysicalResourceId'] = details['KeyMetadata']['KeyId']
 
-    if resource_type == 'EC2::Instance':
-        if action == 'CREATE':
-            stack.resources[resource_id]['PhysicalResourceId'] = details[0].id
+    if resource_type == 'EC2::Instance' and action == 'CREATE':
+        stack.resources[resource_id]['PhysicalResourceId'] = details[0].id
 
     if resource_type == 'EC2::SecurityGroup':
         stack.resources[resource_id]['PhysicalResourceId'] = details['GroupId']
@@ -1772,13 +1770,14 @@ class TemplateDeployer(object):
     def get_unsatisfied_dependencies_for_resources(self, resources, depending_resource=None, return_first=True):
         result = {}
         for resource_id, resource in iteritems(resources):
-            if self.is_deployable_resource(resource):
-                if not self.is_deployed(resource):
-                    LOG.debug('Dependency for resource %s not yet deployed: %s %s' %
-                        (depending_resource, resource_id, resource))
-                    result[resource_id] = resource
-                    if return_first:
-                        break
+            if self.is_deployable_resource(resource) and not self.is_deployed(
+                resource
+            ):
+                LOG.debug('Dependency for resource %s not yet deployed: %s %s' %
+                    (depending_resource, resource_id, resource))
+                result[resource_id] = resource
+                if return_first:
+                    break
         return result
 
     def get_resource_dependencies(self, resource):
@@ -1992,14 +1991,15 @@ class TemplateDeployer(object):
 
         if action in ['Add', 'Modify']:
             is_deployed = self.is_deployed(resource)
-            if action == 'Modify' and not is_deployed:
-                action = res_change['Action'] = 'Add'
-            if action == 'Add':
-                if not self.is_deployable_resource(resource) or is_deployed:
-                    return False
-            if action == 'Modify' and not self.is_updateable(resource):
-                LOG.debug('Action "update" not yet implemented for CF resource type %s' % resource.get('Type'))
-                return False
+        if action == 'Modify' and not is_deployed:
+            action = res_change['Action'] = 'Add'
+        if action == 'Add' and (
+            not self.is_deployable_resource(resource) or is_deployed
+        ):
+            return False
+        if action == 'Modify' and not self.is_updateable(resource):
+            LOG.debug('Action "update" not yet implemented for CF resource type %s' % resource.get('Type'))
+            return False
         return True
 
     def apply_change(self, change, old_stack, new_resources, stack_name):

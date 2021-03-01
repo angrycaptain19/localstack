@@ -134,10 +134,11 @@ class TestTerraform(unittest.TestCase):
         apigateway_client = aws_stack.connect_to_service('apigateway')
         rest_apis = apigateway_client.get_rest_apis()
 
-        service_apis = []
+        service_apis = [
+            rest_api
+            for rest_api in rest_apis['items']
+            if rest_api['name'] == 'service_api'
+        ]
 
-        for rest_api in rest_apis['items']:
-            if rest_api['name'] == 'service_api':
-                service_apis.append(rest_api)
 
         self.assertEqual(len(service_apis), 1)

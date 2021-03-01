@@ -82,10 +82,14 @@ def install_dependencies():
         requirements = f.read()
     install_requires = []
     for line in re.split('\n', requirements):
-        if line and line[0] != '#':
-            if BASIC_LIB_MARKER not in line and IGNORED_LIB_MARKER not in line:
-                line = line.split(' #')[0].strip()
-                install_requires.append(line)
+        if (
+            line
+            and line[0] != '#'
+            and BASIC_LIB_MARKER not in line
+            and IGNORED_LIB_MARKER not in line
+        ):
+            line = line.split(' #')[0].strip()
+            install_requires.append(line)
     LOG.info('Lazily installing missing pip dependencies, this could take a while: %s' %
              ', '.join(install_requires))
     args = ['install'] + install_requires
@@ -104,33 +108,32 @@ def run_pip_main(args):
 
 @log_duration()
 def load_plugin_from_path(file_path, scope=None):
-    if os.path.exists(file_path):
-        module = re.sub(r'(^|.+/)([^/]+)/plugins.py', r'\2', file_path)
-        method_name = 'register_localstack_plugins'
-        scope = scope or PLUGIN_SCOPE_SERVICES
-        if scope == PLUGIN_SCOPE_COMMANDS:
-            method_name = 'register_localstack_commands'
-        try:
-            namespace = {}
-            exec('from %s.plugins import %s' % (module, method_name), namespace)
-            method_to_execute = namespace[method_name]
-        except Exception as e:
-            if (not re.match(r'.*cannot import name .*%s.*' % method_name, str(e)) and
-                    ('No module named' not in str(e))):
-                LOG.debug('Unable to load plugins from module %s: %s' % (module, e))
-            return
-        try:
-            LOG.debug('Loading plugins - scope "%s", module "%s": %s' % (scope, module, method_to_execute))
-            return method_to_execute()
-        except Exception as e:
-            if not os.environ.get(ENV_SCRIPT_STARTING_DOCKER):
-                LOG.warning('Unable to load plugins from file %s: %s' % (file_path, e))
+    if not os.path.exists(file_path):
+        return
+    module = re.sub(r'(^|.+/)([^/]+)/plugins.py', r'\2', file_path)
+    method_name = 'register_localstack_plugins'
+    scope = scope or PLUGIN_SCOPE_SERVICES
+    if scope == PLUGIN_SCOPE_COMMANDS:
+        method_name = 'register_localstack_commands'
+    try:
+        namespace = {}
+        exec('from %s.plugins import %s' % (module, method_name), namespace)
+        method_to_execute = namespace[method_name]
+    except Exception as e:
+        if (not re.match(r'.*cannot import name .*%s.*' % method_name, str(e)) and
+                ('No module named' not in str(e))):
+            LOG.debug('Unable to load plugins from module %s: %s' % (module, e))
+        return
+    try:
+        LOG.debug('Loading plugins - scope "%s", module "%s": %s' % (scope, module, method_to_execute))
+        return method_to_execute()
+    except Exception as e:
+        if not os.environ.get(ENV_SCRIPT_STARTING_DOCKER):
+            LOG.warning('Unable to load plugins from file %s: %s' % (file_path, e))
 
 
 def should_load_module(module, scope):
-    if module == 'localstack_ext' and not os.environ.get('LOCALSTACK_API_KEY'):
-        return False
-    return True
+    return bool(module != 'localstack_ext' or os.environ.get('LOCALSTACK_API_KEY'))
 
 
 @log_duration()
@@ -211,8 +214,7 @@ def get_docker_container_names():
     cmd = "%s ps --format '{{.Names}}'" % config.DOCKER_CMD
     try:
         output = to_str(run(cmd))
-        container_names = re.split(r'\s+', output.strip().replace('\n', ' '))
-        return container_names
+        return re.split(r'\s+', output.strip().replace('\n', ' '))
     except Exception as e:
         LOG.info('Unable to list Docker containers via "%s": %s' % (cmd, e))
         return []
@@ -378,7 +380,7 @@ def validate_localstack_config(name):
         compose_content = yaml.full_load(file)
     localstack_service = [service for service in compose_content['services']
         if compose_content['services'][service]['image'] in constants.OFFICIAL_IMAGES]
-    if len(localstack_service) > 0:
+    if localstack_service:
         localstack_service = localstack_service[0]
     else:
         raise Exception('No official docker image found. Please use one of this image: %s'
@@ -388,8 +390,13 @@ def validate_localstack_config(name):
     image_name = compose_content['services'][localstack_service]['image']
     container_name = compose_content['services'][localstack_service].get('container_name') or ''
     docker_ports = (port.split(':')[0] for port in compose_content['services'][localstack_service].get('ports', []))
-    docker_env = dict((env.split('=')[0], env.split('=')[1])
-        for env in compose_content['services'][localstack_service]['environment'])
+    docker_env = {
+        env.split('=')[0]: env.split('=')[1]
+        for env in compose_content['services'][localstack_service][
+            'environment'
+        ]
+    }
+
 
     # docker-compose file validation cases
     if (docker_env.get('LAMBDA_REMOTE_DOCKER') in constants.FALSE_STRINGS and
@@ -416,10 +423,7 @@ class PortMappings(object):
 
     class HashableList(list):
         def __hash__(self):
-            result = 0
-            for i in self:
-                result += hash(i)
-            return result
+            return sum(hash(i) for i in self)
 
     def __init__(self):
         self.mappings = {}
@@ -621,10 +625,10 @@ def to_str(obj, errors='strict'):
 
 def in_ci():
     """ Whether or not we are running in a CI environment """
-    for key in ('CI', 'TRAVIS'):
-        if os.environ.get(key, '') not in [False, '', '0', 'false']:
-            return True
-    return False
+    return any(
+        os.environ.get(key, '') not in [False, '', '0', 'false']
+        for key in ('CI', 'TRAVIS')
+    )
 
 
 class FuncThread(threading.Thread):

@@ -317,10 +317,12 @@ class TestLambdaAPI(unittest.TestCase):
             result = json.loads(lambda_api.publish_version(self.FUNCTION_NAME).get_data())
             result.pop('RevisionId', None)  # we need to remove this, since this is random, so we cannot know its value
 
-            expected_result = dict()
-            expected_result['CodeSize'] = self.CODE_SIZE
-            expected_result['CodeSha256'] = self.CODE_SHA_256
-            expected_result['FunctionArn'] = str(lambda_api.func_arn(self.FUNCTION_NAME)) + ':1'
+            expected_result = {
+                'CodeSize': self.CODE_SIZE,
+                'CodeSha256': self.CODE_SHA_256,
+                'FunctionArn': str(lambda_api.func_arn(self.FUNCTION_NAME)) + ':1',
+            }
+
             expected_result['FunctionName'] = str(self.FUNCTION_NAME)
             expected_result['Handler'] = str(self.HANDLER)
             expected_result['Runtime'] = str(self.RUNTIME)
@@ -347,10 +349,12 @@ class TestLambdaAPI(unittest.TestCase):
             result = json.loads(lambda_api.publish_version(self.FUNCTION_NAME).get_data())
             result.pop('RevisionId', None)  # we need to remove this, since this is random, so we cannot know its value
 
-            expected_result = dict()
-            expected_result['CodeSize'] = self.CODE_SIZE
-            expected_result['CodeSha256'] = self.UPDATED_CODE_SHA_256
-            expected_result['FunctionArn'] = str(lambda_api.func_arn(self.FUNCTION_NAME)) + ':2'
+            expected_result = {
+                'CodeSize': self.CODE_SIZE,
+                'CodeSha256': self.UPDATED_CODE_SHA_256,
+                'FunctionArn': str(lambda_api.func_arn(self.FUNCTION_NAME)) + ':2',
+            }
+
             expected_result['FunctionName'] = str(self.FUNCTION_NAME)
             expected_result['Handler'] = str(self.HANDLER)
             expected_result['Runtime'] = str(self.RUNTIME)
@@ -386,10 +390,13 @@ class TestLambdaAPI(unittest.TestCase):
                 # we need to remove this, since this is random, so we cannot know its value
                 version.pop('RevisionId', None)
 
-            latest_version = dict()
-            latest_version['CodeSize'] = self.CODE_SIZE
-            latest_version['CodeSha256'] = self.CODE_SHA_256
-            latest_version['FunctionArn'] = str(lambda_api.func_arn(self.FUNCTION_NAME)) + ':$LATEST'
+            latest_version = {
+                'CodeSize': self.CODE_SIZE,
+                'CodeSha256': self.CODE_SHA_256,
+                'FunctionArn': str(lambda_api.func_arn(self.FUNCTION_NAME))
+                + ':$LATEST',
+            }
+
             latest_version['FunctionName'] = str(self.FUNCTION_NAME)
             latest_version['Handler'] = str(self.HANDLER)
             latest_version['Runtime'] = str(self.RUNTIME)
@@ -713,8 +720,7 @@ class TestLambdaAPI(unittest.TestCase):
 
     def prepare_java_opts(self, java_opts):
         lambda_executors.config.LAMBDA_JAVA_OPTS = java_opts
-        result = lambda_executors.Util.get_java_opts()
-        return result
+        return lambda_executors.Util.get_java_opts()
 
     def test_get_java_lib_folder_classpath(self):
         jar_file = os.path.join(new_tmp_dir(), 'foo.jar')

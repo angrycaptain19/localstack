@@ -155,8 +155,9 @@ def apply_patches():
             key.tags = {}
             self.backend.tagger.delete_all_tags_for_resource(key.arn)
             return 204, {}, ''
-        result = s3_key_response_delete_orig(bucket_name, query, key_name, *args, **kwargs)
-        return result
+        return s3_key_response_delete_orig(
+            bucket_name, query, key_name, *args, **kwargs
+        )
 
     s3_key_response_delete_orig = s3_responses.S3ResponseInstance._key_response_delete
     s3_responses.S3ResponseInstance._key_response_delete = types.MethodType(

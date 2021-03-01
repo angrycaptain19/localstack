@@ -204,7 +204,7 @@ class SNSTests(unittest.TestCase):
         sub_arn = 'arn:aws:sns:us-east-1:000000000000:test-topic:45e61c7f-dca5-4fcd-be2b-4e1b0d6eef72'
         topic_arn = 'arn:aws:sns:us-east-1:000000000000:test-topic'
 
-        for i in [1, 2]:
+        for _ in [1, 2]:
             sns_listener.do_subscribe(
                 topic_arn,
                 'arn:aws:sqs:us-east-1:000000000000:test-queue-1',

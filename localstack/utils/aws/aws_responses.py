@@ -235,9 +235,9 @@ class MessageConversion(object):
 
     @staticmethod
     def fix_error_codes(method, data, response):
-        regex = r'<Errors>\s*(<Error>(\s|.)*</Error>)\s*</Errors>'
         if method == 'POST' and 'Action=CreateRole' in to_str(data) and response.status_code >= 400:
             content = to_str(response.content)
+            regex = r'<Errors>\s*(<Error>(\s|.)*</Error>)\s*</Errors>'
             # remove the <Errors> wrapper element, as this breaks AWS Java SDKs (issue #2231)
             response._content = re.sub(regex, r'\1', content, flags=REGEX_FLAGS)
 

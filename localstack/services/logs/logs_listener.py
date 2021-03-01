@@ -7,11 +7,10 @@ from localstack.services.generic_proxy import ProxyListener
 
 class ProxyListenerCloudWatchLogs(ProxyListener):
     def forward_request(self, method, path, data, headers):
-        if method == 'POST' and path == '/':
-            if 'nextToken' in to_str(data or ''):
-                data = self._fix_next_token_request(data)
-                headers['Content-Length'] = str(len(data))
-                return Request(data=data, headers=headers, method=method)
+        if method == 'POST' and path == '/' and 'nextToken' in to_str(data or ''):
+            data = self._fix_next_token_request(data)
+            headers['Content-Length'] = str(len(data))
+            return Request(data=data, headers=headers, method=method)
 
         return True
 

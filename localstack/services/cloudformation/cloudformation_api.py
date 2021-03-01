@@ -126,8 +126,7 @@ class Stack(object):
         state['ResourceType'] = state.get('ResourceType') or self.resources[resource_id].get('Type')
 
     def resource_status(self, resource_id):
-        result = self._lookup(self.resource_states, resource_id)
-        return result
+        return self._lookup(self.resource_states, resource_id)
 
     @property
     def stack_name(self):
@@ -235,10 +234,9 @@ class Stack(object):
 
     @property
     def exports_map(self):
-        result = {}
-        for export in CloudFormationRegion.get().exports:
-            result[export['Name']] = export
-        return result
+        return {
+            export['Name']: export for export in CloudFormationRegion.get().exports
+        }
 
     @property
     def nested_stacks(self):
@@ -315,8 +313,7 @@ def create_stack(req_params):
         msg = 'Unable to create stack "%s": %s' % (stack.stack_name, e)
         LOG.debug('%s %s' % (msg, traceback.format_exc()))
         return error_response(msg, code=400, code_string='ValidationError')
-    result = {'StackId': stack.stack_id}
-    return result
+    return {'StackId': stack.stack_id}
 
 
 def delete_stack(req_params):
@@ -344,8 +341,7 @@ def update_stack(req_params):
         msg = 'Unable to update stack "%s": %s' % (stack_name, e)
         LOG.debug('%s %s' % (msg, traceback.format_exc()))
         return error_response(msg, code=400, code_string='ValidationError')
-    result = {'StackId': stack.stack_id}
-    return result
+    return {'StackId': stack.stack_id}
 
 
 def describe_stacks(req_params):
@@ -355,8 +351,7 @@ def describe_stacks(req_params):
     if stack_name and not stacks:
         return error_response('Stack with id %s does not exist' % stack_name,
             code=400, code_string='ValidationError')
-    result = {'Stacks': {'member': stacks}}
-    return result
+    return {'Stacks': {'member': stacks}}
 
 
 def list_stacks(req_params):
@@ -366,8 +361,7 @@ def list_stacks(req_params):
     attrs = ['StackId', 'StackName', 'TemplateDescription', 'CreationTime', 'LastUpdatedTime', 'DeletionTime',
         'StackStatus', 'StackStatusReason', 'ParentId', 'RootId', 'DriftInformation']
     stacks = [select_attributes(stack, attrs) for stack in stacks]
-    result = {'StackSummaries': {'member': stacks}}
-    return result
+    return {'StackSummaries': {'member': stacks}}
 
 
 def describe_stack_resource(req_params):
@@ -377,8 +371,7 @@ def describe_stack_resource(req_params):
     if not stack:
         return stack_not_found_error(stack_name)
     details = stack.resource_status(resource_id)
-    result = {'StackResourceDetail': details}
-    return result
+    return {'StackResourceDetail': details}
 
 
 def describe_stack_resources(req_params):
@@ -453,19 +446,19 @@ def describe_change_set(req_params):
 
 def list_exports(req_params):
     state = CloudFormationRegion.get()
-    result = {'Exports': {'member': state.exports}}
-    return result
+    return {'Exports': {'member': state.exports}}
 
 
 def list_imports(req_params):
     state = CloudFormationRegion.get()
     export_name = req_params.get('ExportName')
-    importing_stack_names = []
-    for stack in state.stacks.values():
-        if export_name in stack.imports:
-            importing_stack_names.append(stack.stack_name)
-    result = {'Imports': {'member': importing_stack_names}}
-    return result
+    importing_stack_names = [
+        stack.stack_name
+        for stack in state.stacks.values()
+        if export_name in stack.imports
+    ]
+
+    return {'Imports': {'member': importing_stack_names}}
 
 
 def validate_template(req_params):
@@ -506,8 +499,7 @@ def get_template(req_params):
         stack = find_change_set(stack_name, cs_name)
     if not stack:
         return stack_not_found_error(stack_name)
-    result = {'TemplateBody': json.dumps(stack._template_raw)}
-    return result
+    return {'TemplateBody': json.dumps(stack._template_raw)}
 
 
 def get_template_summary(req_params):

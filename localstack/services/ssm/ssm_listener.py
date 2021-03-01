@@ -26,10 +26,16 @@ def get_secrets_information(name, resource_name):
         del secret_info['ResponseMetadata']
         created_date_timestamp = time.mktime(secret_info['CreatedDate'].timetuple())
         secret_info['CreatedDate'] = created_date_timestamp
-        result = {'Parameter': {'SourceResult': json.dumps(secret_info, default=str), 'Name': name, 'Value':
-                secret_info.get('SecretString'), 'Type': 'SecureString',
-                            'LastModifiedDate': created_date_timestamp}}
-        return result
+        return {
+            'Parameter': {
+                'SourceResult': json.dumps(secret_info, default=str),
+                'Name': name,
+                'Value': secret_info.get('SecretString'),
+                'Type': 'SecureString',
+                'LastModifiedDate': created_date_timestamp,
+            }
+        }
+
     except client.exceptions.ResourceNotFoundException:
         return None
 

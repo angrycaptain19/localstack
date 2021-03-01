@@ -52,11 +52,11 @@ def str_or_none(o):
 
 def params_select_attributes(*attrs):
     def do_select(params, **kwargs):
-        result = {}
-        for attr in attrs:
-            if params.get(attr) is not None:
-                result[attr] = str_or_none(params.get(attr))
-        return result
+        return {
+            attr: str_or_none(params.get(attr))
+            for attr in attrs
+            if params.get(attr) is not None
+        }
     return do_select
 
 
@@ -97,9 +97,11 @@ def params_list_to_dict(param_name, key_attr_name='Key', value_attr_name='Value'
 
 def params_dict_to_list(param_name, key_attr_name='Key', value_attr_name='Value', wrapper=None):
     def do_replace(params, **kwargs):
-        result = []
-        for key, value in params.get(param_name, {}).items():
-            result.append({key_attr_name: key, value_attr_name: value})
+        result = [
+            {key_attr_name: key, value_attr_name: value}
+            for key, value in params.get(param_name, {}).items()
+        ]
+
         if wrapper:
             result = {wrapper: result}
         return result
@@ -111,12 +113,11 @@ def get_nested_stack_params(params, **kwargs):
     nested_stack_name = '%s-%s' % (stack_name, common.short_uid())
     stack_params = params.get('Parameters', {})
     stack_params = [{'ParameterKey': k, 'ParameterValue': v} for k, v in stack_params.items()]
-    result = {
+    return {
         'StackName': nested_stack_name,
         'TemplateURL': params.get('TemplateURL'),
         'Parameters': stack_params
     }
-    return result
 
 
 def get_lambda_code_param(params, **kwargs):
@@ -1022,10 +1023,9 @@ def retrieve_resource_details(resource_id, resource_status, resources, stack_nam
                 else:
                     role_name = resources[roles[0]['Ref']]['Properties']['RoleName']
 
-                role_policy = client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
-                return role_policy
+                return client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
 
-            # TODO The InlinePolicy can be embedded in specified User, or Group
+                    # TODO The InlinePolicy can be embedded in specified User, or Group
 
         if is_deployable_resource(resource):
             LOG.warning('Unexpected resource type %s when resolving references of resource %s: %s' %
@@ -1065,8 +1065,7 @@ def extract_resource_attribute(resource_type, resource_json, attribute, resource
         return func_configs.get(attribute)
     elif resource_type == 'DynamoDB::Table':
         actual_attribute = 'LatestStreamArn' if attribute == 'StreamArn' else attribute
-        value = resource_json['Table'].get(actual_attribute)
-        return value
+        return resource_json['Table'].get(actual_attribute)
     elif resource_type == 'ApiGateway::RestApi':
         if is_ref_attribute:
             return resource_json['id']
@@ -1133,9 +1132,14 @@ def resolve_ref(stack_name, ref, resources, attribute):
 
     if not resource_status and resources.get(ref):
         resource_status = resources[ref].get('__details__', {})
-    if not resource_status and resources.get(ref):
-        if isinstance(resources[ref].get(attribute), (str, int, float, bool, dict)):
-            return resources[ref][attribute]
+    if (
+        not resource_status
+        and resources.get(ref)
+        and isinstance(
+            resources[ref].get(attribute), (str, int, float, bool, dict)
+        )
+    ):
+        return resources[ref][attribute]
     # fetch resource details
     resource_new = retrieve_resource_details(ref, resource_status, resources, stack_name)
     if not resource_new:
@@ -1204,7 +1208,7 @@ def resolve_refs_recursively(stack_name, value, resources):
             value[key] = resolve_refs_recursively(stack_name, val, resources)
 
     if isinstance(value, list):
-        for i in range(0, len(value)):
+        for i in range(len(value)):
             value[i] = resolve_refs_recursively(stack_name, value[i], resources)
 
     return value
@@ -1221,9 +1225,14 @@ def resolve_placeholders_in_string(result, stack_name=None, resources=None):
             return resolved
         if len(parts) == 1 and parts[0] in resources:
             resource_json = resources[parts[0]]
-            result = extract_resource_attribute(resource_json.get('Type'), resource_json, 'Ref',
-                resources=resources, resource_id=parts[0])
-            return result
+            return extract_resource_attribute(
+                resource_json.get('Type'),
+                resource_json,
+                'Ref',
+                resources=resources,
+                resource_id=parts[0],
+            )
+
         # TODO raise exception here?
         return match.group(0)
     regex = r'\$\{([^\}]+)\}'
@@ -1559,7 +1568,7 @@ def delete_stack(stack_name, stack_resources):
     resources = dict([(r['LogicalResourceId'], common.clone_safe(r)) for r in stack_resources])
     for key, resource in resources.items():
         resources[key]['Properties'] = common.clone_safe(resource)
-    for resource_id in resources.keys():
+    for resource_id in resources:
         delete_resource(resource_id, resources, stack_name)
 
 
@@ -1578,8 +1587,9 @@ def is_deployable_resource(resource):
 def get_deployment_state(resource_id, resources, stack_name):
     res_details = resources[resource_id]
     resource_status = res_details.get('__details__') or {}
-    details = retrieve_and_update_resource_details(resource_id, resource_status, resources, stack_name)
-    return details
+    return retrieve_and_update_resource_details(
+        resource_id, resource_status, resources, stack_name
+    )
 
 
 def is_deployed(resource_id, resources, stack_name):
@@ -1624,23 +1634,24 @@ def get_unsatisfied_dependencies_for_resources(
         resources, stack_name, all_resources, depending_resource=None, return_first=True):
     result = {}
     for resource_id, resource in iteritems(resources):
-        if is_deployable_resource(resource):
-            if not is_deployed(resource_id, all_resources, stack_name):
-                LOG.debug('Dependency for resource %s not yet deployed: %s %s' %
-                    (depending_resource, resource_id, resource))
-                result[resource_id] = resource
-                if return_first:
-                    break
+        if is_deployable_resource(resource) and not is_deployed(
+            resource_id, all_resources, stack_name
+        ):
+            LOG.debug('Dependency for resource %s not yet deployed: %s %s' %
+                (depending_resource, resource_id, resource))
+            result[resource_id] = resource
+            if return_first:
+                break
     return result
 
 
 # TODO: check if still needed
 def resources_to_deploy_next(resources, stack_name):
-    result = {}
-    for resource_id, resource in resources.items():
-        if should_be_deployed(resource_id, resources, stack_name):
-            result[resource_id] = resource
-    return result
+    return {
+        resource_id: resource
+        for resource_id, resource in resources.items()
+        if should_be_deployed(resource_id, resources, stack_name)
+    }
 
 
 def get_resource_dependencies(resource_id, resource, resources):

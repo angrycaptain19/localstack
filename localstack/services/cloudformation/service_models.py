@@ -240,12 +240,11 @@ class CloudFormationStack(GenericBaseModel):
             stack_params = params.get('Parameters', {})
             stack_params = [{'ParameterKey': k, 'ParameterValue': str(v).lower() if isinstance(v, bool) else str(v)}
                 for k, v in stack_params.items()]
-            result = {
+            return {
                 'StackName': nested_stack_name,
                 'TemplateURL': params.get('TemplateURL'),
                 'Parameters': stack_params
             }
-            return result
 
         return {
             'create': {
@@ -365,9 +364,10 @@ class LambdaEventInvokeConfig(GenericBaseModel):
     def fetch_state(self, stack_name, resources):
         client = aws_stack.connect_to_service('lambda')
         props = self.props
-        result = client.get_function_event_invoke_config(
-            FunctionName=props.get('FunctionName'), Qualifier=props.get('FunctionName', '$LATEST'))
-        return result
+        return client.get_function_event_invoke_config(
+            FunctionName=props.get('FunctionName'),
+            Qualifier=props.get('FunctionName', '$LATEST'),
+        )
 
     def get_physical_resource_id(self, attribute=None, **kwargs):
         props = self.props
@@ -429,8 +429,9 @@ class KinesisStream(GenericBaseModel):
 
     def fetch_state(self, stack_name, resources):
         stream_name = self.resolve_refs_recursively(stack_name, self.props['Name'], resources)
-        result = aws_stack.connect_to_service('kinesis').describe_stream(StreamName=stream_name)
-        return result
+        return aws_stack.connect_to_service('kinesis').describe_stream(
+            StreamName=stream_name
+        )
 
 
 class KinesisStreamConsumer(GenericBaseModel):
@@ -515,8 +516,7 @@ class SFNStateMachine(GenericBaseModel):
         sm_arn = [m['stateMachineArn'] for m in state_machines if m['name'] == sm_name]
         if not sm_arn:
             return None
-        result = sfn_client.describe_state_machine(stateMachineArn=sm_arn[0])
-        return result
+        return sfn_client.describe_state_machine(stateMachineArn=sm_arn[0])
 
     def update_resource(self, new_resource, stack_name, resources):
         props = new_resource['Properties']
@@ -766,8 +766,11 @@ class GatewayMethod(GenericBaseModel):
 
     def get_physical_resource_id(self, attribute=None, **kwargs):
         props = self.props
-        result = '%s-%s-%s' % (props.get('RestApiId'), props.get('ResourceId'), props.get('HttpMethod'))
-        return result
+        return '%s-%s-%s' % (
+            props.get('RestApiId'),
+            props.get('ResourceId'),
+            props.get('HttpMethod'),
+        )
 
 
 class GatewayStage(GenericBaseModel):
@@ -780,9 +783,8 @@ class GatewayStage(GenericBaseModel):
         api_id = self.resolve_refs_recursively(stack_name, api_id, resources)
         if not api_id:
             return None
-        result = aws_stack.connect_to_service('apigateway').get_stage(restApiId=api_id,
+        return aws_stack.connect_to_service('apigateway').get_stage(restApiId=api_id,
             stageName=self.props['StageName'])
-        return result
 
     def get_physical_resource_id(self, attribute=None, **kwargs):
         return self.props.get('id')
@@ -1164,8 +1166,9 @@ class SecretsManagerSecret(GenericBaseModel):
     def fetch_state(self, stack_name, resources):
         secret_name = self.props.get('Name') or self.resource_id
         secret_name = self.resolve_refs_recursively(stack_name, secret_name, resources)
-        result = aws_stack.connect_to_service('secretsmanager').describe_secret(SecretId=secret_name)
-        return result
+        return aws_stack.connect_to_service('secretsmanager').describe_secret(
+            SecretId=secret_name
+        )
 
 
 class KMSKey(GenericBaseModel):

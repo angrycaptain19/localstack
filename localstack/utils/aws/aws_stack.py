@@ -105,10 +105,7 @@ def get_environment(env=None, region_name=None):
     Additionally, parameter `region_name` can be used to override DEFAULT_REGION.
     """
     if not env:
-        if 'ENV' in os.environ:
-            env = os.environ['ENV']
-        else:
-            env = ENV_DEV
+        env = os.environ['ENV'] if 'ENV' in os.environ else ENV_DEV
     elif not is_string(env) and not isinstance(env, Environment):
         raise Exception('Invalid environment: %s' % env)
 
@@ -229,7 +226,7 @@ def connect_to_service(service_name, client=True, env=None, region_name=None, en
     env = get_environment(env, region_name=region_name)
     region = env.region if env.region != REGION_LOCAL else region_name
     key_elements = [service_name, client, env, region, endpoint_url, config]
-    cache_key = '/'.join([str(k) for k in key_elements])
+    cache_key = '/'.join(str(k) for k in key_elements)
     if not cache or cache_key not in BOTO_CLIENTS_CACHE:
         # Cache clients, as this is a relatively expensive operation
         my_session = get_boto3_session(cache=cache)
@@ -634,8 +631,7 @@ def sqs_receive_message(queue_arn):
     region_name = extract_region_from_arn(queue_arn)
     client = connect_to_service('sqs', region_name=region_name)
     queue_url = get_sqs_queue_url(queue_arn)
-    response = client.receive_message(QueueUrl=queue_url)
-    return response
+    return client.receive_message(QueueUrl=queue_url)
 
 
 def firehose_name(firehose_arn):
@@ -655,16 +651,17 @@ def mock_aws_request_headers(service='dynamodb', region_name=None):
 
     access_key = get_boto3_credentials().access_key
     region_name = region_name or get_region()
-    headers = {
+    return {
         'Content-Type': ctype,
         'Accept-Encoding': 'identity',
         'X-Amz-Date': '20160623T103251Z',
-        'Authorization': ('AWS4-HMAC-SHA256 ' +
-            'Credential=%s/20160623/%s/%s/aws4_request, ' +
-            'SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=1234') % (
-                access_key, region_name, service)
+        'Authorization': (
+            'AWS4-HMAC-SHA256 '
+            + 'Credential=%s/20160623/%s/%s/aws4_request, '
+            + 'SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=1234'
+        )
+        % (access_key, region_name, service),
     }
-    return headers
 
 
 def dynamodb_get_item_raw(request):
@@ -724,10 +721,9 @@ def get_apigateway_integration(api_id, method, path, env=None):
     if not resource_id:
         raise Exception('Unable to find apigateway integration for path "%s"' % path)
 
-    integration = apigateway.get_integration(
+    return apigateway.get_integration(
         restApiId=api_id, resourceId=resource_id, httpMethod=method
     )
-    return integration
 
 
 def get_apigateway_resource_for_path(api_id, path, parent=None, resources=None):
@@ -861,8 +857,7 @@ def get_elasticsearch_endpoint(domain=None, region_name=None):
     # get endpoint from API
     es_client = connect_to_service(service_name='es', region_name=env.region)
     info = es_client.describe_elasticsearch_domain(DomainName=domain)
-    endpoint = 'https://%s' % info['DomainStatus']['Endpoint']
-    return endpoint
+    return 'https://%s' % info['DomainStatus']['Endpoint']
 
 
 def connect_elasticsearch(endpoint=None, domain=None, region_name=None, env=None):
